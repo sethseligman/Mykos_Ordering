@@ -33,6 +33,14 @@ import {
   useChecklistDateRebuildPrompt,
   validateVendorDeliveryDate,
 } from '../shared/vendorScheduling'
+import {
+  loadDraftFromSupabase,
+  saveDraftToSupabase,
+} from '../shared/draftQueries'
+import {
+  saveExecutionEventToSupabase,
+  saveFinalizedOrderToSupabase,
+} from '../shared/finalizedOrderQueries'
 import { resolveVendorPlatformConfig } from '../shared/vendorSettingsStorage'
 import {
   appendVendorExecutionEvent,
@@ -86,6 +94,9 @@ const initialAceEndicoDraft = buildInitialAceEndicoDraft()
 const draftStorageKey = `ordering-app:draft:${aceEndicoVendor.id}`
 const generatedAtStorageKey = `ordering-app:lastGeneratedAt:${aceEndicoVendor.id}`
 const sentAtStorageKey = `ordering-app:lastSentAt:${aceEndicoVendor.id}`
+
+// Supabase vendor ID for Ace/Endico
+const SUPABASE_VENDOR_ID = '4059018a-1099-418b-8dac-812e6d85195f'
 
 const CHANNEL_DISPLAY: Record<OrderChannel, string> = {
   text: 'Text',
@@ -592,6 +603,18 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
       method,
       lineCount: draft.items.filter((i) => i.included).length,
     })
+    // Mirror execution event to Supabase — fire and forget
+    void saveExecutionEventToSupabase({
+      supabaseVendorId: SUPABASE_VENDOR_ID,
+      channel:
+        method === 'sms' || method === 'email' || method === 'portal'
+          ? method
+          : 'sms',
+      destination: resolveVendorPlatformConfig(aceEndicoPlatformConfig).settings
+        .orderPlacement.destination,
+      status: 'sent',
+      sentAt: Date.now(),
+    })
     const event = readMostRecentVendorExecutionEvent(aceEndicoVendor.id)
     setLatestExecutionLabel(event ? formatExecutionEventDisplay(event) : null)
     handleTextOrder()
@@ -613,6 +636,18 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
     }
     writeLastSentOrderSnapshot(snapshot)
     appendAceEndicoRichHistory(draft, snapshot, aceEndicoCatalogItems)
+    // Mirror finalized order to Supabase — fire and forget
+    void saveFinalizedOrderToSupabase({
+      supabaseVendorId: SUPABASE_VENDOR_ID,
+      draft,
+      messageText: previewText,
+      channel: (() => {
+        const m = resolveVendorPlatformConfig(aceEndicoPlatformConfig).settings
+          .orderPlacement.method
+        return m === 'sms' || m === 'email' || m === 'portal' ? m : 'sms'
+      })(),
+      sentAt: now,
+    })
     setDraft((d) => ({
       ...d,
       status: 'sent',
@@ -636,8 +671,24 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
   const status = draft.status
   const statusUi = statusStyles[status]
 
+  // Hydrate from Supabase only if localStorage is empty
+  useEffect(() => {
+    if (localStorage.getItem(draftStorageKey) !== null) return
+
+    void loadDraftFromSupabase(SUPABASE_VENDOR_ID).then((remote) => {
+      if (remote) {
+        setDraft(finalizeDraftWithBaseline(remote))
+      }
+    })
+  }, [])
+
   useEffect(() => {
     localStorage.setItem(draftStorageKey, JSON.stringify(draft))
+  }, [draft])
+
+  // Mirror draft to Supabase on every change — fire and forget
+  useEffect(() => {
+    void saveDraftToSupabase(SUPABASE_VENDOR_ID, draft)
   }, [draft])
 
   useEffect(() => {

@@ -39,6 +39,14 @@ import {
   useChecklistDateRebuildPrompt,
   validateVendorDeliveryDate,
 } from '../shared/vendorScheduling'
+import {
+  loadDraftFromSupabase,
+  saveDraftToSupabase,
+} from '../shared/draftQueries'
+import {
+  saveExecutionEventToSupabase,
+  saveFinalizedOrderToSupabase,
+} from '../shared/finalizedOrderQueries'
 import { resolveVendorPlatformConfig } from '../shared/vendorSettingsStorage'
 import {
   appendVendorExecutionEvent,
@@ -91,6 +99,9 @@ const statusStyles: Record<
 const draftStorageKey = `ordering-app:draft:${dartagnanVendor.id}`
 const generatedAtStorageKey = `ordering-app:lastGeneratedAt:${dartagnanVendor.id}`
 const sentAtStorageKey = `ordering-app:lastSentAt:${dartagnanVendor.id}`
+
+// Supabase vendor ID for D'Artagnan
+const SUPABASE_VENDOR_ID = 'b17c6753-772d-464a-8fc4-b821a34a3dbd'
 
 const DARTAGNAN_REP_SET = new Set<string>(dartagnanRepFirstNameOptions)
 
@@ -605,6 +616,18 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
       method,
       lineCount: draft.items.filter((i) => i.included).length,
     })
+    // Mirror execution event to Supabase — fire and forget
+    void saveExecutionEventToSupabase({
+      supabaseVendorId: SUPABASE_VENDOR_ID,
+      channel:
+        method === 'sms' || method === 'email' || method === 'portal'
+          ? method
+          : 'sms',
+      destination: resolveVendorPlatformConfig(dartagnanPlatformConfig).settings
+        .orderPlacement.destination,
+      status: 'sent',
+      sentAt: Date.now(),
+    })
     const event = readMostRecentVendorExecutionEvent(dartagnanVendor.id)
     setLatestExecutionLabel(event ? formatExecutionEventDisplay(event) : null)
     handleTextOrder()
@@ -626,6 +649,18 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     }
     writeLastSentOrderSnapshot(snapshot)
     appendDartagnanOrderHistory(draft, snapshot, dartagnanVendorItems)
+    // Mirror finalized order to Supabase — fire and forget
+    void saveFinalizedOrderToSupabase({
+      supabaseVendorId: SUPABASE_VENDOR_ID,
+      draft,
+      messageText: previewText,
+      channel: (() => {
+        const m = resolveVendorPlatformConfig(dartagnanPlatformConfig).settings
+          .orderPlacement.method
+        return m === 'sms' || m === 'email' || m === 'portal' ? m : 'sms'
+      })(),
+      sentAt: now,
+    })
     setDraft((d) => ({
       ...d,
       status: 'sent',
@@ -648,8 +683,24 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
   const status = draft.status
   const statusUi = statusStyles[status]
 
+  // Hydrate from Supabase only if localStorage is empty
+  useEffect(() => {
+    if (localStorage.getItem(draftStorageKey) !== null) return
+
+    void loadDraftFromSupabase(SUPABASE_VENDOR_ID).then((remote) => {
+      if (remote) {
+        setDraft(finalizeDraftWithBaseline(remote))
+      }
+    })
+  }, [])
+
   useEffect(() => {
     localStorage.setItem(draftStorageKey, JSON.stringify(draft))
+  }, [draft])
+
+  // Mirror draft to Supabase on every change — fire and forget
+  useEffect(() => {
+    void saveDraftToSupabase(SUPABASE_VENDOR_ID, draft)
   }, [draft])
 
   useEffect(() => {
