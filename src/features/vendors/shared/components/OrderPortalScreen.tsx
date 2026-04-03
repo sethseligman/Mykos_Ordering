@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
-import { readPortalVendors } from '../portalVendors'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchPortalVendors, readPortalVendors } from '../portalVendors'
 import {
   deliveryLabelFromSettings,
   orderTriggerLabelFromSettings,
+  type VendorPlatformConfig,
 } from '../vendorConfig'
 import {
   buildPortalVendorCta,
@@ -26,6 +27,22 @@ export function OrderPortalScreen({
   onOpenVendor,
   onOpenVendorAdmin,
 }: Props) {
+  const [vendors, setVendors] = useState<VendorPlatformConfig[]>(() => readPortalVendors())
+
+  useEffect(() => {
+    const loadVendors = async () => {
+      try {
+        const liveVendors = await fetchPortalVendors()
+        setVendors(liveVendors)
+      } catch (error) {
+        // TODO: replace fallback with proper error UI
+        console.error('Failed to fetch portal vendors, using static fallback:', error)
+      }
+    }
+
+    void loadVendors()
+  }, [])
+
   const now = new Date()
   const todayLabel = now.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -35,7 +52,7 @@ export function OrderPortalScreen({
   })
 
   const vendorRows = useMemo(() => {
-    return readPortalVendors().map((v) => {
+    return vendors.map((v) => {
       const draftStatus = readVendorDraftStatus(v.id)
       const dashboardStatus = mapOrderStatusToDashboard(draftStatus)
       const snapshotLast = readVendorLastOrderDisplay(v.id)
@@ -58,7 +75,7 @@ export function OrderPortalScreen({
         actionLabel,
       }
     })
-  }, [refreshKey])
+  }, [refreshKey, vendors])
 
   return (
     <div className="min-h-dvh bg-[#e8e4dc] px-3 py-5 font-sans text-stone-800 sm:px-6 sm:py-8">
