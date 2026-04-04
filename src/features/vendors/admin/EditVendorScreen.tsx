@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../../../lib'
+import type { SupabaseVendorRow } from '../shared/vendorQueries'
 
-type Props = { onBack: () => void }
-
-// TODO: replace with auth session restaurant ID in Phase 2
-const RESTAURANT_ID = '196119fc-3f8f-4344-9731-cad4a2ebc63e'
+type Props = {
+  vendorId: string
+  onBack: () => void
+  onSaved: () => void
+}
 
 const DAYS = [
   'Monday',
@@ -43,7 +45,12 @@ type FieldKey =
   | 'order_cutoff_time'
   | 'destination'
 
-export function AddVendorScreen({ onBack }: Props) {
+export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
+  const [loadState, setLoadState] = useState<'loading' | 'error' | 'ready'>(
+    'loading',
+  )
+  const [loadError, setLoadError] = useState<string | null>(null)
+
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [repName, setRepName] = useState('')
@@ -69,6 +76,52 @@ export function AddVendorScreen({ onBack }: Props) {
   >({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      setLoadState('loading')
+      setLoadError(null)
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('id', vendorId)
+        .single()
+
+      if (cancelled) return
+
+      if (error || !data) {
+        setLoadState('error')
+        setLoadError(error?.message ?? 'Vendor not found.')
+        return
+      }
+
+      const row = data as SupabaseVendorRow
+      setName(row.name)
+      setCategory(row.category)
+      setRepName(row.rep_name ?? '')
+      setOrderDays([...row.order_days])
+      setAvailableDeliveryDays([...row.available_delivery_days])
+      setPreferredDeliveryDays([...row.preferred_delivery_days])
+      setOrderMinimum(String(row.order_minimum))
+      const cutoff = ORDER_CUTOFF_TIME_OPTIONS.includes(row.order_cutoff_time)
+        ? row.order_cutoff_time
+        : '5:00 PM'
+      setOrderCutoffTime(cutoff)
+      setPlacementMethod(row.order_placement_method)
+      setDestination(row.destination)
+      setSupportsAddons(row.supports_addons)
+      setSupportsStandingOrders(row.supports_standing_orders)
+      setSupportsHistorySuggestions(row.supports_history_suggestions)
+      setLoadState('ready')
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [vendorId])
 
   const toggleDay = (
     day: string,
@@ -120,29 +173,58 @@ export function AddVendorScreen({ onBack }: Props) {
       orderMinimum.trim() === '' || Number.isNaN(minParsed) ? 0 : minParsed
 
     setSaving(true)
-    const { error } = await supabase.from('vendors').insert({
-      restaurant_id: RESTAURANT_ID,
-      name: name.trim(),
-      category: category.trim(),
-      rep_name: repName.trim(),
-      order_days: orderDays,
-      available_delivery_days: availableDeliveryDays,
-      preferred_delivery_days: preferredDeliveryDays,
-      order_minimum: orderMinimumNum,
-      order_cutoff_time: orderCutoffTime.trim(),
-      order_placement_method: placementMethod,
-      destination: destination.trim(),
-      supports_addons: supportsAddons,
-      supports_standing_orders: supportsStandingOrders,
-      supports_history_suggestions: supportsHistorySuggestions,
-    })
+    const { error } = await supabase
+      .from('vendors')
+      .update({
+        name: name.trim(),
+        category: category.trim(),
+        rep_name: repName.trim(),
+        order_days: orderDays,
+        available_delivery_days: availableDeliveryDays,
+        preferred_delivery_days: preferredDeliveryDays,
+        order_minimum: orderMinimumNum,
+        order_cutoff_time: orderCutoffTime.trim(),
+        order_placement_method: placementMethod,
+        destination: destination.trim(),
+        supports_addons: supportsAddons,
+        supports_standing_orders: supportsStandingOrders,
+        supports_history_suggestions: supportsHistorySuggestions,
+      })
+      .eq('id', vendorId)
     setSaving(false)
 
     if (error) {
       setSubmitError(error.message)
       return
     }
-    onBack()
+    onSaved()
+  }
+
+  if (loadState === 'loading') {
+    return (
+      <div className="min-h-dvh bg-[#e8e4dc] px-3 py-6 font-sans text-stone-800 sm:px-6">
+        <div className="mx-auto flex max-w-lg min-h-[50vh] items-center justify-center">
+          <p className="text-sm text-stone-600">Loading…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadState === 'error') {
+    return (
+      <div className="min-h-dvh bg-[#e8e4dc] px-3 py-6 font-sans text-stone-800 sm:px-6">
+        <div className="mx-auto max-w-lg space-y-4">
+          <p className="text-sm text-red-800">{loadError}</p>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -156,10 +238,10 @@ export function AddVendorScreen({ onBack }: Props) {
           Back to admin
         </button>
         <h1 className="mt-4 text-xl font-semibold text-stone-900">
-          Add vendor
+          Edit vendor
         </h1>
         <p className="mt-2 text-sm text-stone-600">
-          Create a vendor profile and save it to your restaurant.
+          Update this vendor&apos;s profile and save changes to your restaurant.
         </p>
         <p className="mt-1 text-xs text-stone-500">
           Fields marked <span className="text-red-500">*</span> are required.
@@ -428,7 +510,7 @@ export function AddVendorScreen({ onBack }: Props) {
             disabled={saving}
             className="w-full min-h-11 rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Save vendor'}
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </form>
       </div>

@@ -29,6 +29,7 @@ export async function fetchVendors(
     .from('vendors')
     .select('*')
     .eq('restaurant_id', restaurantId)
+    .is('archived_at', null)
 
   if (error) {
     throw new Error(`Failed to fetch vendors for restaurant ${restaurantId}: ${error.message}`)

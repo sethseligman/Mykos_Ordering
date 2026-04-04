@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AddVendorScreen } from './features/vendors/admin/AddVendorScreen'
+import { EditVendorScreen } from './features/vendors/admin/EditVendorScreen'
 import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
 import { AceEndicoVendorWorkspace } from './features/vendors/ace-endico/AceEndicoVendorWorkspace'
 import { DartagnanVendorWorkspace } from './features/vendors/dartagnan/DartagnanVendorWorkspace'
@@ -16,10 +17,12 @@ type ActiveView =
   | 'f60b1a6c-9aa5-4a96-817c-770951188110'
   | 'admin'
   | 'addVendor'
+  | 'editVendor'
 
 function App() {
   const { session, loading } = useAuth()
   const [activeView, setActiveView] = useState<ActiveView>('portal')
+  const [editingVendorId, setEditingVendorId] = useState<string | null>(null)
   const [portalRefresh, setPortalRefresh] = useState(0)
 
   if (loading) {
@@ -44,6 +47,11 @@ function App() {
     setPortalRefresh((n) => n + 1)
   }
 
+  const openEditVendor = (vendorId: string) => {
+    setEditingVendorId(vendorId)
+    setActiveView('editVendor')
+  }
+
   if (activeView === 'b17c6753-772d-464a-8fc4-b821a34a3dbd') {
     return <DartagnanVendorWorkspace onBack={backToPortal} />
   }
@@ -59,6 +67,7 @@ function App() {
       <VendorAdminScreen
         onBack={backToPortal}
         onAddVendor={() => setActiveView('addVendor')}
+        onEditVendor={openEditVendor}
       />
     )
   }
@@ -66,6 +75,16 @@ function App() {
   if (activeView === 'addVendor') {
     return (
       <AddVendorScreen onBack={() => setActiveView('admin')} />
+    )
+  }
+
+  if (activeView === 'editVendor' && editingVendorId) {
+    return (
+      <EditVendorScreen
+        vendorId={editingVendorId}
+        onBack={() => setActiveView('admin')}
+        onSaved={() => setActiveView('admin')}
+      />
     )
   }
 

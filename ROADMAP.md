@@ -49,6 +49,15 @@ the order as sent. Fix in Phase 2:
 - Consider whether both paths should even exist per vendor or 
   if one should be removed entirely
 
+### Destination field needs format validation
+In both AddVendorScreen and EditVendorScreen, the destination 
+field accepts any text. Add format validation based on the 
+selected placement method:
+- SMS: validate as a phone number (E.164 format or US format)
+- Email: validate as an email address (basic regex or browser 
+  native email input type)
+- Portal: validate as a URL
+
 ---
 
 ## Phase 3 — Improve Projection Quality
