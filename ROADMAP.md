@@ -32,6 +32,23 @@
 - Ensure vendor settings, scheduling rules, and outbound behavior are fully coherent across all vendors
 - Document a repeatable "how to add a vendor" process (even informal) before adding vendor 4+
 
+## Known UX debt from Phase 1
+
+### Order placement flow is split and confusing
+Two paths exist for placing an order:
+- Manual: Generate order text → copy → Mark as sent
+- Automated: Ready to place order → confirm modal → SMS fires
+
+These are disconnected. Confirming in the modal does not mark 
+the order as sent. Fix in Phase 2:
+- Add `order_mode: 'manual' | 'automated'` to vendor settings 
+  (schema + UI)
+- In automated mode: confirming the placement modal should 
+  trigger mark-as-sent automatically
+- In manual mode: keep the current generate → copy → mark sent flow
+- Consider whether both paths should even exist per vendor or 
+  if one should be removed entirely
+
 ---
 
 ## Phase 3 — Improve Projection Quality

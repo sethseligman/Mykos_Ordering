@@ -29,13 +29,13 @@ export function QuantityInputWithArrows({
   quantityLabel,
 }: Props) {
   return (
-    <div className="flex w-full items-center justify-end gap-px">
+    <div className="flex w-full items-center justify-end gap-2 lg:gap-px">
       <input
         type="text"
         inputMode="decimal"
         placeholder="—"
         disabled={disabled}
-        className="w-10 min-w-0 shrink-0 rounded border border-stone-300 bg-white px-0.5 py-1 text-center font-mono text-xs text-stone-900 tabular-nums placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400 disabled:opacity-60 sm:w-11 sm:px-1 sm:text-sm"
+        className="w-14 min-w-0 shrink-0 rounded border border-stone-300 bg-white px-0.5 py-1 text-center font-mono text-xs text-stone-900 tabular-nums placeholder:text-stone-400 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400 disabled:opacity-60 sm:w-16 sm:px-1 sm:text-sm lg:w-10"
         value={value}
         onChange={(e) => onChangeValue(e.target.value)}
         aria-label={`Quantity for ${quantityLabel}`}
@@ -49,7 +49,7 @@ export function QuantityInputWithArrows({
           type="button"
           disabled={disabled}
           onClick={() => onChangeValue(stepQuantityString(value, 1))}
-          className="flex h-3 w-3.5 items-center justify-center rounded-sm text-[8px] leading-none text-stone-400 hover:bg-stone-100 hover:text-stone-700 active:bg-stone-200 sm:h-3.5 sm:w-4 sm:text-[9px] disabled:opacity-40"
+          className="flex h-8 w-8 touch-manipulation items-center justify-center rounded-sm text-[8px] leading-none text-stone-400 hover:bg-stone-100 hover:text-stone-700 active:bg-stone-200 sm:text-[9px] disabled:opacity-40 lg:h-3.5 lg:w-4 lg:text-[9px]"
           aria-label={`Increase quantity for ${quantityLabel}`}
         >
           ↑
@@ -58,7 +58,7 @@ export function QuantityInputWithArrows({
           type="button"
           disabled={disabled}
           onClick={() => onChangeValue(stepQuantityString(value, -1))}
-          className="flex h-3 w-3.5 items-center justify-center rounded-sm text-[8px] leading-none text-stone-400 hover:bg-stone-100 hover:text-stone-700 active:bg-stone-200 sm:h-3.5 sm:w-4 sm:text-[9px] disabled:opacity-40"
+          className="flex h-8 w-8 touch-manipulation items-center justify-center rounded-sm text-[8px] leading-none text-stone-400 hover:bg-stone-100 hover:text-stone-700 active:bg-stone-200 sm:text-[9px] disabled:opacity-40 lg:h-3.5 lg:w-4 lg:text-[9px]"
           aria-label={`Decrease quantity for ${quantityLabel}`}
         >
           ↓

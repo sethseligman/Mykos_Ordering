@@ -309,12 +309,12 @@ function OrderChecklist({ items, catalog, onChange, disabled }: ChecklistProps) 
                   />
                 </td>
                 <td
-                  className="max-w-0 overflow-hidden truncate px-1 py-1.5 align-middle font-medium text-stone-900 sm:px-2 sm:py-2"
+                  className="max-w-0 w-full truncate px-1 py-1.5 align-middle font-medium text-stone-900 sm:px-2 sm:py-2"
                   title={label}
                 >
                   {label}
                 </td>
-                <td className="px-0.5 py-1.5 align-middle sm:px-1 sm:py-2">
+                <td className="shrink-0 whitespace-nowrap px-0.5 py-1.5 align-middle sm:px-1 sm:py-2">
                   <QuantityInputWithArrows
                     value={row.quantity}
                     onChangeValue={(quantity) =>
@@ -324,7 +324,7 @@ function OrderChecklist({ items, catalog, onChange, disabled }: ChecklistProps) 
                     quantityLabel={label}
                   />
                 </td>
-                <td className="px-0.5 py-1.5 align-middle sm:px-1 sm:py-2">
+                <td className="shrink-0 whitespace-nowrap px-0.5 py-1.5 align-middle sm:px-1 sm:py-2">
                   <input
                     type="text"
                     disabled={disabled}
@@ -730,7 +730,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
           ) : null}
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
-            <div className="space-y-6">
+            <div className="space-y-6 pb-40 lg:pb-0">
               <section aria-labelledby="checklist-heading">
                 <h2
                   id="checklist-heading"
@@ -826,6 +826,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
                   {outboundNotice}
                 </p>
               ) : null}
+              <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-4 border-t border-stone-300 bg-[#f7f5f0] px-4 pt-3 pb-6 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
               <button
                 type="button"
                 onClick={() => setPlacementConfirmOpen(true)}
@@ -879,6 +880,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
                 >
                   Mark as sent
                 </button>
+              </div>
               </div>
             </aside>
           </div>
