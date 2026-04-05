@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import {
@@ -436,6 +437,9 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
   )
   const [sentAt, setSentAt] = useState<number | null>(() => readStoredSentAt())
   const [finalizeModalOpen, setFinalizeModalOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveAck, setSaveAck] = useState(false)
+  const saveResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [latestExecutionLabel, setLatestExecutionLabel] = useState<string | null>(() => {
     const event = readMostRecentVendorExecutionEvent(dartagnanVendor.id)
     return event ? formatExecutionEventDisplay(event) : null
@@ -559,6 +563,25 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     setDraft((d) => ({ ...d, status: 'ready' }))
     setLastGeneratedAt(Date.now())
   }
+
+  const handleSaveDraft = async () => {
+    if (saving) return
+    setSaving(true)
+    await saveDraftToSupabase(SUPABASE_VENDOR_ID, draft)
+    setSaving(false)
+    setSaveAck(true)
+    if (saveResetRef.current) clearTimeout(saveResetRef.current)
+    saveResetRef.current = setTimeout(() => {
+      setSaveAck(false)
+      saveResetRef.current = null
+    }, 1500)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (saveResetRef.current) clearTimeout(saveResetRef.current)
+    }
+  }, [])
 
   const logNativeSendExecution = () => {
     const method = resolveVendorPlatformConfig(dartagnanPlatformConfig).settings
@@ -824,7 +847,15 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
             onNativeSendWillOpen={logNativeSendExecution}
             disableActions={disableOutboundActions}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-[#f7f5f0] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSaveDraft()}
+              disabled={saving}
+              className="rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700 disabled:opacity-40 whitespace-nowrap"
+            >
+              {saveAck ? 'Saved ✓' : 'Save'}
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -834,7 +865,7 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
                 setFinalizeModalOpen(true)
               }}
               disabled={disableOutboundActions}
-              className="w-full rounded-lg bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
+              className="flex-1 rounded-lg bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
             >
               Finalize Order
             </button>
