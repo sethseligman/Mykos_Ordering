@@ -109,6 +109,7 @@ Apply the same fixed bottom bar pattern to GenericVendorWorkspace
 - Anomaly detection (e.g. "you usually order 7 gallons of milk — today you have 2, is that right?")
 - Replenishment and cadence logic for low-frequency items
 - Multi-restaurant / SaaS architecture layer (enabled by the auth/multi-tenancy schema designed in Phase 1)
+- Build platform-managed master catalogs for common vendors (Baldor, Sysco, US Foods, Chef's Warehouse, Ace/Endico, D'Artagnan, etc.). New restaurants select their subset on vendor onboarding. Powers the "Use platform catalog" option in the Add Vendor wizard Step 3.
 
 ---
 
