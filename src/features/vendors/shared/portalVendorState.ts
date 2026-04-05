@@ -80,7 +80,14 @@ export function buildVendorStatusDetailLine(
 export function buildPortalVendorCta(
   _vendorId: string,
   orderStatus: OrderStatus,
+  placementMethod?: string,
 ): string {
+  if (orderStatus === 'sent') return 'Open workspace'
+  if (
+    orderStatus === 'ready' &&
+    (placementMethod === 'portal' || placementMethod === 'other')
+  )
+    return 'Ready to place — open workspace'
   if (orderStatus === 'draft') return 'Continue draft'
   return 'Open workspace'
 }

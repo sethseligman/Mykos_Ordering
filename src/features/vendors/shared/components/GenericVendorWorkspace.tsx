@@ -157,12 +157,16 @@ function mergeDraftWithCatalog(
       unit: p.unit.trim() ? p.unit : row.unit,
     }
   })
+  const catalogIds = new Set(template.map((r) => r.vendorItemId))
+  const customItems = parsed.items.filter(
+    (i) => i.vendorItemId.startsWith('custom:') && !catalogIds.has(i.vendorItemId),
+  )
   return {
     ...parsed,
     vendorId,
     deliveryDate: parsed.deliveryDate || deliveryDate,
     repFirstName: parsed.repFirstName?.trim() || repFirstName,
-    items,
+    items: [...items, ...customItems],
   }
 }
 
@@ -220,6 +224,21 @@ const statusStyles: Record<
   },
 }
 
+function buildNativeSendUrl(
+  method: 'sms' | 'email' | 'portal' | 'other',
+  destination: string,
+  message: string,
+): string | null {
+  if (method === 'sms') {
+    const separator = destination.includes('?') ? '&' : '?'
+    return `sms:${destination}${separator}body=${encodeURIComponent(message)}`
+  }
+  if (method === 'email') {
+    return `mailto:${destination}?subject=Order&body=${encodeURIComponent(message)}`
+  }
+  return null
+}
+
 export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [loadState, setLoadState] = useState<'loading' | 'error' | 'ready'>(
     'loading',
@@ -236,9 +255,36 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [historyRows, setHistoryRows] = useState<FinalizedOrderRow[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [placementConfirmOpen, setPlacementConfirmOpen] = useState(false)
+  const [showAddItem, setShowAddItem] = useState(false)
+  const [newItemName, setNewItemName] = useState('')
+  const [newItemQty, setNewItemQty] = useState('')
+  const [newItemUnit, setNewItemUnit] = useState('')
+  const [customNames, setCustomNames] = useState<Map<string, string>>(
+    () => new Map(),
+  )
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const draftStorageKey = `ordering-app:draft:${vendorId}`
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(
+        `ordering-app:custom-names:${vendorId}`,
+      )
+      if (raw) {
+        const obj = JSON.parse(raw) as Record<string, string>
+        setCustomNames(new Map(Object.entries(obj)))
+      } else {
+        setCustomNames(new Map())
+      }
+    } catch {
+      setCustomNames(new Map())
+    }
+    setShowAddItem(false)
+    setNewItemName('')
+    setNewItemQty('')
+    setNewItemUnit('')
+  }, [vendorId])
 
   useEffect(() => {
     let cancelled = false
@@ -374,10 +420,22 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     return sortOrderItemsByCatalogOrder(draft.items, checklistOrderedIds)
   }, [draft, checklistOrderedIds])
 
+  const mergedCatalog = useMemo(() => {
+    if (!draft) return catalog
+    const customItems: VendorItem[] = draft.items
+      .filter((i) => i.vendorItemId.startsWith('custom:'))
+      .map((i) => ({
+        id: i.vendorItemId,
+        name: customNames.get(i.vendorItemId) ?? 'Custom item',
+        unit: i.unit,
+      }))
+    return [...catalog, ...customItems]
+  }, [catalog, draft, customNames])
+
   const previewText = useMemo(() => {
     if (!draft || !vendor) return ''
-    return buildOrderMessage(vendor, catalog, draft)
-  }, [draft, vendor, catalog])
+    return buildOrderMessage(vendor, mergedCatalog, draft)
+  }, [draft, vendor, mergedCatalog])
 
   const bumpDraft = useCallback(
     (updater: (prev: OrderDraft) => OrderDraft) => {
@@ -408,7 +466,42 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
       ...d,
       items: buildEmptyOrderItems(catalog),
     }))
+    setCustomNames(new Map())
     checklistRebuild.markChecklistRebuiltForCurrentDate()
+  }
+
+  const handleAddCustomItem = () => {
+    const name = newItemName.trim()
+    if (!name) return
+    const id = 'custom:' + Math.random().toString(36).slice(2, 8)
+    const newItem: OrderItem = {
+      vendorItemId: id,
+      included: true,
+      quantity: newItemQty.trim(),
+      unit: newItemUnit.trim() || 'each',
+    }
+    bumpDraft((prev) => ({
+      ...prev,
+      items: [...prev.items, newItem],
+    }))
+    setCustomNames((prev) => {
+      const next = new Map(prev)
+      next.set(id, name)
+      try {
+        const obj = Object.fromEntries(next)
+        localStorage.setItem(
+          `ordering-app:custom-names:${vendorId}`,
+          JSON.stringify(obj),
+        )
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+    setNewItemName('')
+    setNewItemQty('')
+    setNewItemUnit('')
+    setShowAddItem(false)
   }
 
   const handleGenerate = () => {
@@ -462,11 +555,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     if (!draft || draft.status !== 'ready' || disableOutboundActions) return
     if (!vendorRow) return
     const now = Date.now()
-    const channel =
-      vendorRow.order_placement_method === 'email' ||
-      vendorRow.order_placement_method === 'portal'
-        ? vendorRow.order_placement_method
-        : 'sms'
+    const channel = vendorRow.order_placement_method
     const sentDraft: OrderDraft = { ...draft, status: 'sent' }
     void saveFinalizedOrderToSupabase({
       supabaseVendorId: vendorId,
@@ -530,6 +619,17 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
 
   const statusUi = statusStyles[draft.status]
   const placementMethod = vendorRow.order_placement_method
+  const isNativePlacement =
+    placementMethod === 'sms' || placementMethod === 'email'
+  const isPortalOrOtherPlacement =
+    placementMethod === 'portal' || placementMethod === 'other'
+  const showReadyPlacementBanner =
+    draft.status === 'ready' && isPortalOrOtherPlacement
+
+  const draftHasCustomItems = draft.items.some((i) =>
+    i.vendorItemId.startsWith('custom:'),
+  )
+  const showChecklistTable = catalog.length > 0 || draftHasCustomItems
 
   return (
     <div className="min-h-dvh bg-[#e8e4dc] font-sans text-stone-800">
@@ -629,9 +729,10 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                       onChangeMode={setChecklistSortMode}
                     />
 
-                    {catalog.length === 0 ? (
+                    {!showChecklistTable ? (
                       <p className="rounded-md border border-stone-200 bg-white/80 px-4 py-6 text-center text-sm text-stone-600">
-                        No catalog items yet. Import a catalog from Vendor Admin.
+                        No catalog items yet. Import a catalog from Vendor Admin,
+                        or add one-off items below.
                       </p>
                     ) : (
                       <div className="overflow-x-auto rounded-md border border-stone-300 bg-white shadow-inner">
@@ -657,7 +758,13 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                               const cat = catalog.find(
                                 (c) => c.id === row.vendorItemId,
                               )
-                              const label = cat?.name ?? row.vendorItemId
+                              const isCustom = row.vendorItemId.startsWith(
+                                'custom:',
+                              )
+                              const label = isCustom
+                                ? (customNames.get(row.vendorItemId) ??
+                                  'Custom item')
+                                : (cat?.name ?? row.vendorItemId)
                               return (
                                 <tr
                                   key={row.vendorItemId}
@@ -678,7 +785,48 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                                     />
                                   </td>
                                   <td className="px-2 py-2 align-middle font-medium break-words">
-                                    {label}
+                                    <span className="inline-flex flex-wrap items-center gap-x-1">
+                                      <span>{label}</span>
+                                      {isCustom ? (
+                                        <span className="text-xs text-stone-400">
+                                          (custom)
+                                        </span>
+                                      ) : null}
+                                      {isCustom ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            bumpDraft((prev) => ({
+                                              ...prev,
+                                              items: prev.items.filter(
+                                                (i) =>
+                                                  i.vendorItemId !==
+                                                  row.vendorItemId,
+                                              ),
+                                            }))
+                                            setCustomNames((prev) => {
+                                              const next = new Map(prev)
+                                              next.delete(row.vendorItemId)
+                                              try {
+                                                localStorage.setItem(
+                                                  `ordering-app:custom-names:${vendorId}`,
+                                                  JSON.stringify(
+                                                    Object.fromEntries(next),
+                                                  ),
+                                                )
+                                              } catch {
+                                                /* ignore */
+                                              }
+                                              return next
+                                            })
+                                          }}
+                                          className="ml-1 touch-manipulation text-xs text-stone-400 hover:text-red-500"
+                                          aria-label={`Remove ${label}`}
+                                        >
+                                          ×
+                                        </button>
+                                      ) : null}
+                                    </span>
                                   </td>
                                   <td className="px-2 py-2 align-middle">
                                     <QuantityInputWithArrows
@@ -704,23 +852,112 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         </table>
                       </div>
                     )}
+                    {showAddItem ? (
+                      <div className="mt-2 flex flex-wrap items-end gap-2">
+                        <div className="min-w-0 flex-1 basis-[140px]">
+                          <input
+                            type="text"
+                            placeholder="Item name"
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            className="min-h-11 w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-base text-stone-900 sm:text-sm"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="w-16 shrink-0">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Qty"
+                            value={newItemQty}
+                            onChange={(e) => setNewItemQty(e.target.value)}
+                            className="min-h-11 w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-center text-base text-stone-900 sm:text-sm"
+                          />
+                        </div>
+                        <div className="w-20 shrink-0">
+                          <input
+                            type="text"
+                            placeholder="Unit"
+                            value={newItemUnit}
+                            onChange={(e) => setNewItemUnit(e.target.value)}
+                            className="min-h-11 w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-base text-stone-900 sm:text-sm"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddCustomItem}
+                          className="min-h-11 touch-manipulation rounded bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddItem(false)
+                            setNewItemName('')
+                            setNewItemQty('')
+                            setNewItemUnit('')
+                          }}
+                          className="min-h-11 touch-manipulation text-xs text-stone-500 hover:text-stone-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddItem(true)}
+                        className="mt-2 flex min-h-11 touch-manipulation items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800"
+                      >
+                        + Add item
+                      </button>
+                    )}
                   </div>
 
                   <div className="w-full shrink-0 space-y-3 lg:w-72">
-                    <OrderCartSummaryPanel
-                      items={draft.items}
-                      catalog={catalog}
-                    />
+                    {showReadyPlacementBanner ? (
+                      <div
+                        className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900"
+                        role="status"
+                      >
+                        {placementMethod === 'portal'
+                          ? 'Order ready — log into vendor portal to place'
+                          : 'Order ready — place using your preferred method'}
+                      </div>
+                    ) : null}
+                    <div className="hidden lg:block">
+                      <OrderCartSummaryPanel
+                        items={draft.items}
+                        catalog={mergedCatalog}
+                      />
+                    </div>
                     <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-4 border-t border-stone-300 bg-[#f7f5f0] px-4 pt-3 pb-6 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
                       <div className="flex flex-col gap-2">
-                        <button
-                          type="button"
-                          disabled={disableOutboundActions || catalog.length === 0}
-                          onClick={handleGenerate}
-                          className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Generate order text
-                        </button>
+                        {isNativePlacement && draft.status === 'ready' ? (
+                          <button
+                            type="button"
+                            disabled={disableOutboundActions}
+                            onClick={() => setPlacementConfirmOpen(true)}
+                            className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Send via{' '}
+                            {placementMethod === 'sms' ? 'SMS' : 'Email'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={
+                              disableOutboundActions ||
+                              (catalog.length === 0 && !draftHasCustomItems)
+                            }
+                            onClick={handleGenerate}
+                            className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isPortalOrOtherPlacement
+                              ? 'Generate order sheet'
+                              : 'Generate order text'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={disableOutboundActions || draft.status !== 'ready'}
@@ -738,19 +975,10 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                           onClick={handleMarkSent}
                           className="w-full rounded-md border border-stone-600 bg-stone-100 py-2.5 text-sm font-semibold text-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Mark as sent
+                          {isPortalOrOtherPlacement
+                            ? 'Mark as placed'
+                            : 'Mark as sent'}
                         </button>
-                        {placementMethod === 'sms' ||
-                        placementMethod === 'email' ? (
-                          <button
-                            type="button"
-                            disabled={disableOutboundActions || draft.status !== 'ready'}
-                            onClick={() => setPlacementConfirmOpen(true)}
-                            className="w-full rounded-md border border-stone-300 bg-white py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60"
-                          >
-                            Preview placement
-                          </button>
-                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -765,7 +993,16 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                   previewText={previewText}
                   onClose={() => setPlacementConfirmOpen(false)}
                   onPrint={() => window.print()}
-                  onConfirmSend={() => setPlacementConfirmOpen(false)}
+                  onConfirmSend={() => {
+                    const url = buildNativeSendUrl(
+                      placementMethod,
+                      vendorRow.destination,
+                      previewText,
+                    )
+                    if (url) window.open(url, '_self')
+                    handleMarkSent()
+                    setPlacementConfirmOpen(false)
+                  }}
                 />
               </>
             )}

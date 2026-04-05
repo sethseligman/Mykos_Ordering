@@ -296,9 +296,8 @@ export function DartagnanVendorWorkspace({ onBack }: Props) {
                       >
                         <option value="sms">SMS</option>
                         <option value="email">Email</option>
-                        <option value="portal">Vendor portal</option>
-                        <option value="api">API</option>
-                        <option value="phone">Phone</option>
+                        <option value="portal">Portal (vendor website)</option>
+                        <option value="other">Other</option>
                       </select>
                     </label>
                     <label className="text-xs font-semibold text-stone-600">

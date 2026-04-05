@@ -18,7 +18,7 @@ const DAYS = [
   'Sunday',
 ] as const
 
-type PlacementMethod = 'sms' | 'email' | 'portal'
+type PlacementMethod = 'sms' | 'email' | 'portal' | 'other'
 
 function generateTimeOptions(): string[] {
   const out: string[] = []
@@ -66,6 +66,7 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
   const [placementMethod, setPlacementMethod] =
     useState<PlacementMethod>('sms')
   const [destination, setDestination] = useState('')
+  const [vendorNotes, setVendorNotes] = useState('')
   const [supportsAddons, setSupportsAddons] = useState(false)
   const [supportsStandingOrders, setSupportsStandingOrders] = useState(false)
   const [supportsHistorySuggestions, setSupportsHistorySuggestions] =
@@ -110,7 +111,16 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
         : '5:00 PM'
       setOrderCutoffTime(cutoff)
       setPlacementMethod(row.order_placement_method)
-      setDestination(row.destination)
+      if (
+        row.order_placement_method === 'portal' ||
+        row.order_placement_method === 'other'
+      ) {
+        setVendorNotes(row.destination)
+        setDestination('')
+      } else {
+        setDestination(row.destination)
+        setVendorNotes('')
+      }
       setSupportsAddons(row.supports_addons)
       setSupportsStandingOrders(row.supports_standing_orders)
       setSupportsHistorySuggestions(row.supports_history_suggestions)
@@ -158,7 +168,11 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
         'Select at least one preferred delivery day.'
     if (!orderCutoffTime.trim())
       next.order_cutoff_time = 'Order cutoff time is required.'
-    if (!destination.trim()) next.destination = 'Destination is required.'
+    if (
+      (placementMethod === 'sms' || placementMethod === 'email') &&
+      !destination.trim()
+    )
+      next.destination = 'Destination is required.'
     setFieldErrors(next)
     return Object.keys(next).length === 0
   }
@@ -185,7 +199,10 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
         order_minimum: orderMinimumNum,
         order_cutoff_time: orderCutoffTime.trim(),
         order_placement_method: placementMethod,
-        destination: destination.trim(),
+        destination:
+          placementMethod === 'portal' || placementMethod === 'other'
+            ? vendorNotes.trim()
+            : destination.trim(),
         supports_addons: supportsAddons,
         supports_standing_orders: supportsStandingOrders,
         supports_history_suggestions: supportsHistorySuggestions,
@@ -443,36 +460,62 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
               >
                 <option value="sms">SMS</option>
                 <option value="email">Email</option>
-                <option value="portal">Portal</option>
+                <option value="portal">Portal (vendor website)</option>
+                <option value="other">Other</option>
               </select>
             </div>
-            <div>
-              <label
-                htmlFor="destination"
-                className="text-xs font-semibold uppercase tracking-wide text-stone-600"
-              >
-                Destination
-                <span className="ml-0.5 text-red-500" aria-hidden="true">
-                  *
-                </span>
-              </label>
-              <input
-                id="destination"
-                type="text"
-                value={destination}
-                onChange={(e) => {
-                  setDestination(e.target.value)
-                  clearFieldError('destination')
-                }}
-                placeholder="Phone number, email, or URL"
-                className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
-              />
-              {fieldErrors.destination ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors.destination}
-                </p>
-              ) : null}
-            </div>
+            {placementMethod === 'sms' || placementMethod === 'email' ? (
+              <div>
+                <label
+                  htmlFor="destination"
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-600"
+                >
+                  Destination
+                  <span className="ml-0.5 text-red-500" aria-hidden="true">
+                    *
+                  </span>
+                </label>
+                <input
+                  id="destination"
+                  type="text"
+                  value={destination}
+                  onChange={(e) => {
+                    setDestination(e.target.value)
+                    clearFieldError('destination')
+                  }}
+                  placeholder="Phone number, email, or URL"
+                  className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                />
+                {fieldErrors.destination ? (
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.destination}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div>
+                <label
+                  htmlFor="vendor-notes"
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-600"
+                >
+                  {placementMethod === 'portal'
+                    ? 'Portal notes (optional)'
+                    : 'Notes (optional)'}
+                </label>
+                <textarea
+                  id="vendor-notes"
+                  value={vendorNotes}
+                  onChange={(e) => setVendorNotes(e.target.value)}
+                  placeholder={
+                    placementMethod === 'portal'
+                      ? 'e.g. Login at vendor.com — Customer #13749'
+                      : 'e.g. Drop off order sheet on Tuesdays'
+                  }
+                  rows={3}
+                  className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                />
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">

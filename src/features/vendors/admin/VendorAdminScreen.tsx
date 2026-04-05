@@ -21,6 +21,8 @@ function placementDisplay(
       return 'Email'
     case 'portal':
       return 'Portal'
+    case 'other':
+      return 'Other'
   }
 }
 

@@ -5,6 +5,7 @@ const channelLabel: Record<Vendor['channel'], string> = {
   email: 'Email',
   phone: 'Phone',
   portal: 'Portal',
+  other: 'Other',
 }
 
 type Props = { vendor: Vendor }

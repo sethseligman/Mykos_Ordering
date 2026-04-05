@@ -103,6 +103,7 @@ const CHANNEL_DISPLAY: Record<OrderChannel, string> = {
   email: 'Email',
   phone: 'Phone',
   portal: 'Portal',
+  other: 'Other',
 }
 
 function buildNativeSendUrl(message: string): string | null {
@@ -607,7 +608,10 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
     void saveExecutionEventToSupabase({
       supabaseVendorId: SUPABASE_VENDOR_ID,
       channel:
-        method === 'sms' || method === 'email' || method === 'portal'
+        method === 'sms' ||
+        method === 'email' ||
+        method === 'portal' ||
+        method === 'other'
           ? method
           : 'sms',
       destination: resolveVendorPlatformConfig(aceEndicoPlatformConfig).settings
@@ -644,7 +648,12 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
       channel: (() => {
         const m = resolveVendorPlatformConfig(aceEndicoPlatformConfig).settings
           .orderPlacement.method
-        return m === 'sms' || m === 'email' || m === 'portal' ? m : 'sms'
+        return m === 'sms' ||
+          m === 'email' ||
+          m === 'portal' ||
+          m === 'other'
+          ? m
+          : 'sms'
       })(),
       sentAt: now,
     })
@@ -817,10 +826,12 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
             </div>
 
             <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-              <OrderCartSummaryPanel
-                items={draft.items}
-                catalog={aceEndicoCatalogItems}
-              />
+              <div className="hidden lg:block">
+                <OrderCartSummaryPanel
+                  items={draft.items}
+                  catalog={aceEndicoCatalogItems}
+                />
+              </div>
               {outboundNotice ? (
                 <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   {outboundNotice}

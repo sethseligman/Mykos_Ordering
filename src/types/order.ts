@@ -1,5 +1,5 @@
-/** How orders are sent to this vendor (extensible for email, portal, etc.) */
-export type OrderChannel = 'text' | 'email' | 'phone' | 'portal'
+/** How orders are sent to this vendor (extensible for email, portal, other channels, etc.) */
+export type OrderChannel = 'text' | 'email' | 'phone' | 'portal' | 'other'
 export type VendorChannelType = 'sms' | 'email'
 export type VendorSendMode = 'native' | 'manual'
 

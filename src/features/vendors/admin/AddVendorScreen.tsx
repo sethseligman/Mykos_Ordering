@@ -25,7 +25,7 @@ const STEP_TITLES = [
   'Review',
 ] as const
 
-type PlacementMethod = 'sms' | 'email' | 'portal'
+type PlacementMethod = 'sms' | 'email' | 'portal' | 'other'
 
 type CatalogRow = { name: string; unit: string; pack_size: string }
 
@@ -120,7 +120,9 @@ function placementLabel(method: PlacementMethod): string {
     case 'email':
       return 'Email'
     case 'portal':
-      return 'Portal'
+      return 'Portal (vendor website)'
+    case 'other':
+      return 'Other'
   }
 }
 
@@ -133,6 +135,7 @@ export function AddVendorScreen({ onBack }: Props) {
   const [placementMethod, setPlacementMethod] =
     useState<PlacementMethod>('sms')
   const [destination, setDestination] = useState('')
+  const [vendorNotes, setVendorNotes] = useState('')
 
   const [orderDays, setOrderDays] = useState<string[]>([])
   const [availableDeliveryDays, setAvailableDeliveryDays] = useState<string[]>(
@@ -191,7 +194,11 @@ export function AddVendorScreen({ onBack }: Props) {
     const next: Partial<Record<FieldKey, string>> = {}
     if (!name.trim()) next.name = 'Vendor name is required.'
     if (!category.trim()) next.category = 'Category is required.'
-    if (!destination.trim()) next.destination = 'Destination is required.'
+    if (
+      (placementMethod === 'sms' || placementMethod === 'email') &&
+      !destination.trim()
+    )
+      next.destination = 'Destination is required.'
     setFieldErrors((prev) => {
       const merged = { ...prev }
       delete merged.name
@@ -334,7 +341,10 @@ export function AddVendorScreen({ onBack }: Props) {
         order_minimum: orderMinimumNum,
         order_cutoff_time: orderCutoffTime.trim(),
         order_placement_method: placementMethod,
-        destination: destination.trim(),
+        destination:
+          placementMethod === 'portal' || placementMethod === 'other'
+            ? vendorNotes.trim()
+            : destination.trim(),
         supports_addons: supportsAddons,
         supports_standing_orders: supportsStandingOrders,
         supports_history_suggestions: supportsHistorySuggestions,
@@ -509,36 +519,62 @@ export function AddVendorScreen({ onBack }: Props) {
               >
                 <option value="sms">SMS</option>
                 <option value="email">Email</option>
-                <option value="portal">Portal</option>
+                <option value="portal">Portal (vendor website)</option>
+                <option value="other">Other</option>
               </select>
             </div>
-            <div>
-              <label
-                htmlFor="destination"
-                className="text-xs font-semibold uppercase tracking-wide text-stone-600"
-              >
-                Destination
-                <span className="ml-0.5 text-red-500" aria-hidden="true">
-                  *
-                </span>
-              </label>
-              <input
-                id="destination"
-                type="text"
-                value={destination}
-                onChange={(e) => {
-                  setDestination(e.target.value)
-                  clearFieldError('destination')
-                }}
-                placeholder="Phone number, email, or URL"
-                className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
-              />
-              {fieldErrors.destination ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors.destination}
-                </p>
-              ) : null}
-            </div>
+            {placementMethod === 'sms' || placementMethod === 'email' ? (
+              <div>
+                <label
+                  htmlFor="destination"
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-600"
+                >
+                  Destination
+                  <span className="ml-0.5 text-red-500" aria-hidden="true">
+                    *
+                  </span>
+                </label>
+                <input
+                  id="destination"
+                  type="text"
+                  value={destination}
+                  onChange={(e) => {
+                    setDestination(e.target.value)
+                    clearFieldError('destination')
+                  }}
+                  placeholder="Phone number, email, or URL"
+                  className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                />
+                {fieldErrors.destination ? (
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.destination}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div>
+                <label
+                  htmlFor="vendor-notes"
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-600"
+                >
+                  {placementMethod === 'portal'
+                    ? 'Portal notes (optional)'
+                    : 'Notes (optional)'}
+                </label>
+                <textarea
+                  id="vendor-notes"
+                  value={vendorNotes}
+                  onChange={(e) => setVendorNotes(e.target.value)}
+                  placeholder={
+                    placementMethod === 'portal'
+                      ? 'e.g. Login at vendor.com — Customer #13749'
+                      : 'e.g. Drop off order sheet on Tuesdays'
+                  }
+                  rows={3}
+                  className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -845,7 +881,11 @@ export function AddVendorScreen({ onBack }: Props) {
                   </li>
                   <li>
                     <span className="text-stone-500">Placement:</span>{' '}
-                    {placementLabel(placementMethod)} → {destination.trim()}
+                    {placementLabel(placementMethod)} →{' '}
+                    {placementMethod === 'portal' ||
+                    placementMethod === 'other'
+                      ? vendorNotes.trim() || '—'
+                      : destination.trim()}
                   </li>
                 </ul>
               </div>

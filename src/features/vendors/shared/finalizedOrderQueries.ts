@@ -8,7 +8,7 @@ export async function saveFinalizedOrderToSupabase(params: {
   supabaseVendorId: string
   draft: OrderDraft
   messageText: string
-  channel: 'sms' | 'email' | 'portal'
+  channel: 'sms' | 'email' | 'portal' | 'other'
   sentAt: number
 }): Promise<void> {
   // Fire-and-forget: localStorage history is source of truth
@@ -32,7 +32,7 @@ export async function saveFinalizedOrderToSupabase(params: {
 
 export async function saveExecutionEventToSupabase(params: {
   supabaseVendorId: string
-  channel: 'sms' | 'email' | 'portal'
+  channel: 'sms' | 'email' | 'portal' | 'other'
   destination: string
   status: 'sent' | 'failed' | 'pending'
   sentAt: number

@@ -1,4 +1,4 @@
-export type OrderPlacementMethod = 'sms' | 'email' | 'portal' | 'api' | 'phone'
+export type OrderPlacementMethod = 'sms' | 'email' | 'portal' | 'other'
 
 export type VendorCapabilities = {
   supportsAddOns: boolean

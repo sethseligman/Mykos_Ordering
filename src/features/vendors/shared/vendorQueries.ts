@@ -13,7 +13,7 @@ export type SupabaseVendorRow = {
   preferred_delivery_days: string[]
   order_minimum: number
   order_cutoff_time: string
-  order_placement_method: 'sms' | 'email' | 'portal'
+  order_placement_method: 'sms' | 'email' | 'portal' | 'other'
   destination: string
   supports_addons: boolean
   supports_standing_orders: boolean
@@ -88,7 +88,9 @@ export function mapSupabaseVendorRowToVendor(row: SupabaseVendorRow): Vendor {
       ? 'email'
       : row.order_placement_method === 'portal'
         ? 'portal'
-        : 'text'
+        : row.order_placement_method === 'other'
+          ? 'other'
+          : 'text'
 
   return {
     id: row.id,

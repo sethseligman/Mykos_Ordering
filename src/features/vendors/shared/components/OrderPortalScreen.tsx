@@ -66,7 +66,11 @@ export function OrderPortalScreen({
           snapshotLast,
           v.lastKnownOrderDate,
         )
-      const actionLabel = buildPortalVendorCta(v.id, draftStatus)
+      const actionLabel = buildPortalVendorCta(
+        v.id,
+        draftStatus,
+        v.settings.orderPlacement.method,
+      )
       return {
         ...v,
         dashboardStatus,

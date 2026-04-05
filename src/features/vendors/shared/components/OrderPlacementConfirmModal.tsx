@@ -16,8 +16,7 @@ function titleForMethod(method: OrderPlacementMethod): string {
   if (method === 'sms') return 'Confirm and send text'
   if (method === 'email') return 'Confirm and send email'
   if (method === 'portal') return 'Confirm portal placement'
-  if (method === 'api') return 'Confirm API handoff'
-  return 'Confirm phone placement'
+  return 'Confirm placement'
 }
 
 export function OrderPlacementConfirmModal({
