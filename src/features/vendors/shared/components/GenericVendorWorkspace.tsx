@@ -249,6 +249,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     () => new Map(),
   )
   const draftStorageKey = `ordering-app:draft:${vendorId}`
+  const draftTimestampKey = `ordering-app:draft-ts:${vendorId}`
 
   useEffect(() => {
     try {
@@ -348,45 +349,32 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     )
     setDraft(localDraft)
 
+    if (
+      localStorage.getItem(draftStorageKey) &&
+      !localStorage.getItem(draftTimestampKey)
+    ) {
+      localStorage.setItem(draftTimestampKey, Date.now().toString())
+    }
+
     // Then check Supabase for a more recent draft
     void loadDraftWithTimestampFromSupabase(vendorId).then((remote) => {
       if (!remote) return
 
-      const localRaw = localStorage.getItem(draftStorageKey)
-      const remoteAge = Date.now() - new Date(remote.updatedAt).getTime()
-      const remoteIsRecent = remoteAge < 7 * 24 * 60 * 60 * 1000
+      const localTsRaw = localStorage.getItem(draftTimestampKey)
+      const localTs = localTsRaw ? parseInt(localTsRaw, 10) : 0
+      const remoteTs = new Date(remote.updatedAt).getTime()
 
-      if (!localRaw) {
-        // No local draft — use remote
-        setDraft(
-          mergeDraftWithCatalog(
-            remote.draft,
-            catalog,
-            vendorId,
-            defaultDate,
-            vendor.primaryRepFirstName,
-          ),
+      if (remoteTs > localTs) {
+        const hydrated = mergeDraftWithCatalog(
+          remote.draft,
+          catalog,
+          vendorId,
+          defaultDate,
+          vendor.primaryRepFirstName,
         )
-        localStorage.setItem(draftStorageKey, JSON.stringify(remote.draft))
-        return
-      }
-
-      const localDraft = JSON.parse(localRaw) as { status?: string }
-      const remoteIsMoreComplete =
-        (remote.draft.status === 'sent' || remote.draft.status === 'ready') &&
-        localDraft.status === 'draft'
-
-      if (remoteIsRecent && remoteIsMoreComplete) {
-        setDraft(
-          mergeDraftWithCatalog(
-            remote.draft,
-            catalog,
-            vendorId,
-            defaultDate,
-            vendor.primaryRepFirstName,
-          ),
-        )
-        localStorage.setItem(draftStorageKey, JSON.stringify(remote.draft))
+        setDraft(hydrated)
+        localStorage.setItem(draftStorageKey, JSON.stringify(hydrated))
+        localStorage.setItem(draftTimestampKey, remoteTs.toString())
       }
     })
   }, [
@@ -396,18 +384,20 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     catalog,
     vendorId,
     draftStorageKey,
+    draftTimestampKey,
   ])
 
   const persistDraft = useCallback(
     (next: OrderDraft) => {
       try {
         localStorage.setItem(draftStorageKey, JSON.stringify(next))
+        localStorage.setItem(draftTimestampKey, Date.now().toString())
       } catch {
         /* ignore */
       }
       void saveDraftToSupabase(vendorId, next)
     },
-    [draftStorageKey, vendorId],
+    [draftStorageKey, draftTimestampKey, vendorId],
   )
 
   useEffect(() => {
