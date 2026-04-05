@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 import {
@@ -24,8 +23,8 @@ import {
 import { buildOrderMessage } from '../../../lib/buildOrderMessage'
 import { ChecklistDateRebuildPrompt } from '../shared/components/ChecklistDateRebuildPrompt'
 import { OrderChecklistQuickActions } from '../shared/components/OrderChecklistQuickActions'
+import { FinalizeOrderModal } from '../shared/components/FinalizeOrderModal'
 import { OrderCartSummaryPanel } from '../shared/components/OrderCartSummaryPanel'
-import { OrderPlacementConfirmModal } from '../shared/components/OrderPlacementConfirmModal'
 import { VendorDeliveryDateBanner } from '../shared/components/VendorDeliveryDateBanner'
 import { QuantityInputWithArrows } from '../shared/components/QuantityInputWithArrows'
 import { SortChecklistToolbar } from '../shared/components/SortChecklistToolbar'
@@ -111,20 +110,6 @@ const CHANNEL_DISPLAY: Record<OrderChannel, string> = {
   phone: 'Phone',
   portal: 'Portal',
   other: 'Other',
-}
-
-function buildNativeSendUrl(message: string): string | null {
-  const platform = resolveVendorPlatformConfig(dartagnanPlatformConfig)
-  if (dartagnanVendor.sendMode !== 'native') return null
-  const { method, destination } = platform.settings.orderPlacement
-  if (method === 'sms') {
-    const separator = destination.includes('?') ? '&' : '?'
-    return `sms:${destination}${separator}body=${encodeURIComponent(message)}`
-  }
-  if (method === 'email') {
-    return `mailto:${destination}?body=${encodeURIComponent(message)}`
-  }
-  return null
 }
 
 function finalizeDraftWithBaseline(draft: OrderDraft): OrderDraft {
@@ -445,14 +430,11 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     readStoredLastGeneratedAt(),
   )
   const [sentAt, setSentAt] = useState<number | null>(() => readStoredSentAt())
-  const [copyAcknowledged, setCopyAcknowledged] = useState(false)
-  const [outboundNotice, setOutboundNotice] = useState<string | null>(null)
-  const [placementConfirmOpen, setPlacementConfirmOpen] = useState(false)
+  const [finalizeModalOpen, setFinalizeModalOpen] = useState(false)
   const [latestExecutionLabel, setLatestExecutionLabel] = useState<string | null>(() => {
     const event = readMostRecentVendorExecutionEvent(dartagnanVendor.id)
     return event ? formatExecutionEventDisplay(event) : null
   })
-  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [checklistSortMode, setChecklistSortMode] =
     useState<OrderChecklistSortMode>('frequency')
 
@@ -573,41 +555,7 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     setLastGeneratedAt(Date.now())
   }
 
-  const handleCopy = async () => {
-    if (disableOutboundActions) return
-    if (copyResetRef.current) {
-      clearTimeout(copyResetRef.current)
-      copyResetRef.current = null
-    }
-    try {
-      await navigator.clipboard.writeText(previewText)
-      setCopyAcknowledged(true)
-      copyResetRef.current = setTimeout(() => {
-        setCopyAcknowledged(false)
-        copyResetRef.current = null
-      }, 1500)
-    } catch {
-      setCopyAcknowledged(false)
-    }
-  }
-
-  const handleTextOrder = () => {
-    if (disableOutboundActions) return
-    const link = buildNativeSendUrl(previewText)
-    if (!link) {
-      const method = resolveVendorPlatformConfig(
-        dartagnanPlatformConfig,
-      ).settings.orderPlacement.method
-      setOutboundNotice(
-        `Order placement method "${method}" is configured, but this phase uses a placeholder only.`,
-      )
-      return
-    }
-    setOutboundNotice(null)
-    window.location.href = link
-  }
-
-  const handleConfirmPlaceOrder = () => {
+  const logNativeSendExecution = () => {
     const method = resolveVendorPlatformConfig(dartagnanPlatformConfig).settings
       .orderPlacement.method
     appendVendorExecutionEvent({
@@ -617,7 +565,6 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
       method,
       lineCount: draft.items.filter((i) => i.included).length,
     })
-    // Mirror execution event to Supabase — fire and forget
     void saveExecutionEventToSupabase({
       supabaseVendorId: SUPABASE_VENDOR_ID,
       channel:
@@ -634,8 +581,6 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     })
     const event = readMostRecentVendorExecutionEvent(dartagnanVendor.id)
     setLatestExecutionLabel(event ? formatExecutionEventDisplay(event) : null)
-    handleTextOrder()
-    setPlacementConfirmOpen(false)
   }
 
   const handleMarkSent = () => {
@@ -683,12 +628,6 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     onSent?.()
   }
 
-  useEffect(() => {
-    return () => {
-      if (copyResetRef.current) clearTimeout(copyResetRef.current)
-    }
-  }, [])
-
   const status = draft.status
   const statusUi = statusStyles[status]
 
@@ -727,6 +666,10 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     ? 'font-sans text-stone-800'
     : 'overflow-hidden rounded-lg border border-stone-400/90 bg-[#f7f5f0] font-sans text-stone-800 shadow-[0_2px_0_rgba(28,25,23,0.06),0_12px_32px_-8px_rgba(28,25,23,0.12)]'
 
+  const dartPlacement = resolveVendorPlatformConfig(dartagnanPlatformConfig)
+    .settings.orderPlacement
+  const includedItemCount = draft.items.filter((i) => i.included).length
+
   return (
     <div className={shellClass}>
           <OrderMetadataBar
@@ -753,7 +696,7 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
           ) : null}
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
-            <div className="space-y-6 pb-24 lg:pb-0">
+            <div className="space-y-6 pb-6 lg:pb-0">
               <section aria-labelledby="checklist-heading">
                 <h2
                   id="checklist-heading"
@@ -851,79 +794,37 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
                   catalog={dartagnanVendorItems}
                 />
               </div>
-              {outboundNotice ? (
-                <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  {outboundNotice}
-                </p>
-              ) : null}
-              <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-1.5 border-t border-stone-300 bg-[#f7f5f0] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
-                <div className="flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleGenerate}
-                    disabled={disableOutboundActions}
-                    title={
-                      disableOutboundActions
-                        ? 'Set a valid delivery day to generate order text.'
-                        : undefined
-                    }
-                    className="w-full rounded-md border border-stone-400 bg-white py-1.5 text-xs font-semibold text-stone-900 shadow-sm hover:bg-stone-50 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    Generate order text
-                  </button>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      disabled={disableOutboundActions}
-                      title={
-                        disableOutboundActions
-                          ? 'Set a valid delivery day to copy order text.'
-                          : undefined
-                      }
-                      className="min-w-0 flex-1 rounded-md border border-stone-300 bg-white py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
-                    >
-                      {copyAcknowledged ? 'Copied ✓' : 'Copy order text'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleMarkSent}
-                      disabled={
-                        draft.status !== 'ready' || disableOutboundActions
-                      }
-                      title={
-                        disableOutboundActions
-                          ? 'Set a valid delivery day before marking sent.'
-                          : draft.status === 'ready'
-                            ? undefined
-                            : 'Generate order text first to mark this sheet as sent.'
-                      }
-                      className="min-w-0 flex-1 rounded-md border border-transparent bg-stone-200 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-300 active:bg-stone-400/80 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-stone-200"
-                    >
-                      Mark as sent
-                    </button>
-                  </div>
-                </div>
-              </div>
             </aside>
           </div>
-          <OrderPlacementConfirmModal
-            isOpen={placementConfirmOpen}
+          <FinalizeOrderModal
+            isOpen={finalizeModalOpen}
+            onClose={() => setFinalizeModalOpen(false)}
             vendorName={dartagnanVendor.name}
             deliveryDate={draft.deliveryDate}
-            method={
-              resolveVendorPlatformConfig(dartagnanPlatformConfig).settings
-                .orderPlacement.method
-            }
-            destination={
-              resolveVendorPlatformConfig(dartagnanPlatformConfig).settings
-                .orderPlacement.destination
-            }
+            itemCount={includedItemCount}
             previewText={previewText}
-            onClose={() => setPlacementConfirmOpen(false)}
-            onPrint={() => window.print()}
-            onConfirmSend={handleConfirmPlaceOrder}
+            placementMethod={dartPlacement.method}
+            destination={dartPlacement.destination}
+            onMarkSent={handleMarkSent}
+            status={draft.status}
+            onNativeSendWillOpen={logNativeSendExecution}
+            disableActions={disableOutboundActions}
           />
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-[#f7f5f0] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (draft.status === 'draft') {
+                  handleGenerate()
+                }
+                setFinalizeModalOpen(true)
+              }}
+              disabled={disableOutboundActions}
+              className="w-full rounded-lg bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
+            >
+              Finalize Order
+            </button>
+          </div>
     </div>
   )
 }

@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 import { supabase } from '../../../../lib'
@@ -26,9 +25,9 @@ import {
 } from '../vendorScheduling'
 import type { VendorSchedulingRules, Weekday } from '../vendorScheduling/types'
 import { ChecklistDateRebuildPrompt } from './ChecklistDateRebuildPrompt'
+import { FinalizeOrderModal } from './FinalizeOrderModal'
 import { OrderCartSummaryPanel } from './OrderCartSummaryPanel'
 import { OrderChecklistQuickActions } from './OrderChecklistQuickActions'
-import { OrderPlacementConfirmModal } from './OrderPlacementConfirmModal'
 import { QuantityInputWithArrows } from './QuantityInputWithArrows'
 import { SortChecklistToolbar } from './SortChecklistToolbar'
 import { VendorDeliveryDateBanner } from './VendorDeliveryDateBanner'
@@ -224,21 +223,6 @@ const statusStyles: Record<
   },
 }
 
-function buildNativeSendUrl(
-  method: 'sms' | 'email' | 'portal' | 'other',
-  destination: string,
-  message: string,
-): string | null {
-  if (method === 'sms') {
-    const separator = destination.includes('?') ? '&' : '?'
-    return `sms:${destination}${separator}body=${encodeURIComponent(message)}`
-  }
-  if (method === 'email') {
-    return `mailto:${destination}?subject=Order&body=${encodeURIComponent(message)}`
-  }
-  return null
-}
-
 export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [loadState, setLoadState] = useState<'loading' | 'error' | 'ready'>(
     'loading',
@@ -249,12 +233,11 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [tab, setTab] = useState<TabId>('current')
   const [draft, setDraft] = useState<OrderDraft | null>(null)
   const [lastGeneratedAt, setLastGeneratedAt] = useState<number | null>(null)
-  const [copyAcknowledged, setCopyAcknowledged] = useState(false)
+  const [finalizeModalOpen, setFinalizeModalOpen] = useState(false)
   const [checklistSortMode, setChecklistSortMode] =
     useState<OrderChecklistSortMode>('alphabetical')
   const [historyRows, setHistoryRows] = useState<FinalizedOrderRow[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [placementConfirmOpen, setPlacementConfirmOpen] = useState(false)
   const [showAddItem, setShowAddItem] = useState(false)
   const [newItemName, setNewItemName] = useState('')
   const [newItemQty, setNewItemQty] = useState('')
@@ -262,8 +245,6 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [customNames, setCustomNames] = useState<Map<string, string>>(
     () => new Map(),
   )
-  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const draftStorageKey = `ordering-app:draft:${vendorId}`
 
   useEffect(() => {
@@ -510,24 +491,6 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     setLastGeneratedAt(Date.now())
   }
 
-  const handleCopy = async () => {
-    if (!draft || disableOutboundActions) return
-    if (copyResetRef.current) {
-      clearTimeout(copyResetRef.current)
-      copyResetRef.current = null
-    }
-    try {
-      await navigator.clipboard.writeText(previewText)
-      setCopyAcknowledged(true)
-      copyResetRef.current = setTimeout(() => {
-        setCopyAcknowledged(false)
-        copyResetRef.current = null
-      }, 1500)
-    } catch {
-      setCopyAcknowledged(false)
-    }
-  }
-
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)
     const { data, error } = await supabase
@@ -619,8 +582,6 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
 
   const statusUi = statusStyles[draft.status]
   const placementMethod = vendorRow.order_placement_method
-  const isNativePlacement =
-    placementMethod === 'sms' || placementMethod === 'email'
   const isPortalOrOtherPlacement =
     placementMethod === 'portal' || placementMethod === 'other'
   const showReadyPlacementBanner =
@@ -630,6 +591,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     i.vendorItemId.startsWith('custom:'),
   )
   const showChecklistTable = catalog.length > 0 || draftHasCustomItems
+  const includedItemCount = draft.items.filter((i) => i.included).length
 
   return (
     <div className="min-h-dvh bg-[#e8e4dc] font-sans text-stone-800">
@@ -713,7 +675,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                 />
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                  <div className="min-w-0 flex-1 pb-24 lg:pb-0">
+                  <div className="min-w-0 flex-1 pb-6 lg:pb-0">
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
                       Order checklist
                     </h2>
@@ -931,82 +893,21 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         catalog={mergedCatalog}
                       />
                     </div>
-                    <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-1.5 border-t border-stone-300 bg-[#f7f5f0] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
-                      <div className="flex flex-col gap-1.5">
-                        {isNativePlacement && draft.status === 'ready' ? (
-                          <button
-                            type="button"
-                            disabled={disableOutboundActions}
-                            onClick={() => setPlacementConfirmOpen(true)}
-                            className="w-full rounded-md bg-stone-900 py-1.5 text-xs font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            Send via{' '}
-                            {placementMethod === 'sms' ? 'SMS' : 'Email'}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={
-                              disableOutboundActions ||
-                              (catalog.length === 0 && !draftHasCustomItems)
-                            }
-                            onClick={handleGenerate}
-                            className="w-full rounded-md bg-stone-900 py-1.5 text-xs font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isPortalOrOtherPlacement
-                              ? 'Generate order sheet'
-                              : 'Generate order text'}
-                          </button>
-                        )}
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            disabled={
-                              disableOutboundActions || draft.status !== 'ready'
-                            }
-                            onClick={() => void handleCopy()}
-                            className="min-w-0 flex-1 rounded-md border border-stone-300 bg-white py-1.5 text-xs font-semibold text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {copyAcknowledged ? 'Copied!' : 'Copy'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={
-                              disableOutboundActions ||
-                              draft.status !== 'ready'
-                            }
-                            onClick={handleMarkSent}
-                            className="min-w-0 flex-1 rounded-md border border-stone-600 bg-stone-100 py-1.5 text-xs font-semibold text-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isPortalOrOtherPlacement
-                              ? 'Mark as placed'
-                              : 'Mark as sent'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
-                <OrderPlacementConfirmModal
-                  isOpen={placementConfirmOpen}
+                <FinalizeOrderModal
+                  isOpen={finalizeModalOpen}
+                  onClose={() => setFinalizeModalOpen(false)}
                   vendorName={vendor.name}
                   deliveryDate={draft.deliveryDate}
-                  method={placementMethod}
-                  destination={vendorRow.destination}
+                  itemCount={includedItemCount}
                   previewText={previewText}
-                  onClose={() => setPlacementConfirmOpen(false)}
-                  onPrint={() => window.print()}
-                  onConfirmSend={() => {
-                    const url = buildNativeSendUrl(
-                      placementMethod,
-                      vendorRow.destination,
-                      previewText,
-                    )
-                    if (url) window.open(url, '_self')
-                    handleMarkSent()
-                    setPlacementConfirmOpen(false)
-                  }}
+                  placementMethod={placementMethod}
+                  destination={vendorRow.destination}
+                  onMarkSent={handleMarkSent}
+                  status={draft.status}
+                  disableActions={disableOutboundActions}
                 />
               </>
             )}
@@ -1049,6 +950,26 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
           </div>
         </div>
       </div>
+      {tab === 'current' ? (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-[#f7f5f0] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (draft.status === 'draft') {
+                handleGenerate()
+              }
+              setFinalizeModalOpen(true)
+            }}
+            disabled={
+              disableOutboundActions ||
+              (catalog.length === 0 && !draftHasCustomItems)
+            }
+            className="w-full rounded-lg bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
+          >
+            Finalize Order
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
