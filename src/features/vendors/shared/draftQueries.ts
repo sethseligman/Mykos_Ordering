@@ -143,3 +143,42 @@ export async function loadDraftFromSupabase(
     return null
   }
 }
+
+/** Same as {@link loadDraftFromSupabase} but includes `updated_at` for cross-device recency checks. Never throws. */
+export async function loadDraftWithTimestampFromSupabase(
+  vendorId: string,
+): Promise<{ draft: OrderDraft; updatedAt: string } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('order_drafts')
+      .select('*')
+      .eq('vendor_id', vendorId)
+      .eq('restaurant_id', RESTAURANT_ID)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.error(
+        'loadDraftWithTimestampFromSupabase: query failed',
+        error.message,
+      )
+      return null
+    }
+
+    if (!data) return null
+
+    const row = data as SupabaseDraftRow
+    const parsed = parseDraftFromRow(row)
+    if (!parsed) {
+      console.error(
+        'loadDraftWithTimestampFromSupabase: invalid draft payload in row',
+      )
+      return null
+    }
+    return { draft: parsed, updatedAt: row.updated_at }
+  } catch (err) {
+    console.error('loadDraftWithTimestampFromSupabase: unexpected error', err)
+    return null
+  }
+}

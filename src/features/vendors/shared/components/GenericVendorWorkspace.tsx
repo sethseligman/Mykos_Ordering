@@ -7,7 +7,10 @@ import {
 import { supabase } from '../../../../lib'
 import { buildOrderMessage } from '../../../../lib/buildOrderMessage'
 import type { OrderDraft, OrderItem, OrderStatus, VendorItem } from '../../../../types/order'
-import { saveDraftToSupabase } from '../draftQueries'
+import {
+  loadDraftWithTimestampFromSupabase,
+  saveDraftToSupabase,
+} from '../draftQueries'
 import { saveFinalizedOrderToSupabase } from '../finalizedOrderQueries'
 import {
   mapSupabaseVendorRowToVendor,
@@ -334,16 +337,66 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   useEffect(() => {
     if (loadState !== 'ready' || !vendor || !schedulingRules) return
     const defaultDate = defaultDeliveryDateForScheduling(schedulingRules)
-    setDraft(
-      readDraftFromStorage(
-        draftStorageKey,
-        catalog,
-        vendorId,
-        defaultDate,
-        vendor.primaryRepFirstName,
-      ),
+
+    // Set localStorage draft immediately for fast UI
+    const localDraft = readDraftFromStorage(
+      draftStorageKey,
+      catalog,
+      vendorId,
+      defaultDate,
+      vendor.primaryRepFirstName,
     )
-  }, [loadState, vendor, schedulingRules, catalog, vendorId, draftStorageKey])
+    setDraft(localDraft)
+
+    // Then check Supabase for a more recent draft
+    void loadDraftWithTimestampFromSupabase(vendorId).then((remote) => {
+      if (!remote) return
+
+      const localRaw = localStorage.getItem(draftStorageKey)
+      const remoteAge = Date.now() - new Date(remote.updatedAt).getTime()
+      const remoteIsRecent = remoteAge < 7 * 24 * 60 * 60 * 1000
+
+      if (!localRaw) {
+        // No local draft — use remote
+        setDraft(
+          mergeDraftWithCatalog(
+            remote.draft,
+            catalog,
+            vendorId,
+            defaultDate,
+            vendor.primaryRepFirstName,
+          ),
+        )
+        localStorage.setItem(draftStorageKey, JSON.stringify(remote.draft))
+        return
+      }
+
+      const localDraft = JSON.parse(localRaw) as { status?: string }
+      const remoteIsMoreComplete =
+        (remote.draft.status === 'sent' || remote.draft.status === 'ready') &&
+        localDraft.status === 'draft'
+
+      if (remoteIsRecent && remoteIsMoreComplete) {
+        setDraft(
+          mergeDraftWithCatalog(
+            remote.draft,
+            catalog,
+            vendorId,
+            defaultDate,
+            vendor.primaryRepFirstName,
+          ),
+        )
+        localStorage.setItem(draftStorageKey, JSON.stringify(remote.draft))
+      }
+    })
+  }, [
+    loadState,
+    vendor,
+    schedulingRules,
+    catalog,
+    vendorId,
+    draftStorageKey,
+  ])
 
   const persistDraft = useCallback(
     (next: OrderDraft) => {

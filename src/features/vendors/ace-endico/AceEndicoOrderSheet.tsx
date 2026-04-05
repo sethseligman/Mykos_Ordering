@@ -33,7 +33,7 @@ import {
   validateVendorDeliveryDate,
 } from '../shared/vendorScheduling'
 import {
-  loadDraftFromSupabase,
+  loadDraftWithTimestampFromSupabase,
   saveDraftToSupabase,
 } from '../shared/draftQueries'
 import {
@@ -619,15 +619,42 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
   const status = draft.status
   const statusUi = statusStyles[status]
 
-  // Hydrate from Supabase only if localStorage is empty
   useEffect(() => {
-    if (localStorage.getItem(draftStorageKey) !== null) return
+    void loadDraftWithTimestampFromSupabase(SUPABASE_VENDOR_ID).then(
+      (remote) => {
+        if (!remote) return
 
-    void loadDraftFromSupabase(SUPABASE_VENDOR_ID).then((remote) => {
-      if (remote) {
-        setDraft(finalizeDraftWithBaseline(remote))
-      }
-    })
+        // Always use Supabase draft if localStorage is empty
+        const localRaw = localStorage.getItem(draftStorageKey)
+        if (!localRaw) {
+          setDraft(finalizeDraftWithBaseline(remote.draft))
+          return
+        }
+
+        // Compare timestamps — use whichever is more recent
+        // localStorage has no timestamp so check if Supabase
+        // draft was updated in the last 24 hours on a different
+        // device by comparing to local draft's delivery date
+        // Simple heuristic: if remote updated_at is newer than
+        // 60 seconds ago AND local status is 'draft', prefer remote
+        const remoteAge = Date.now() - new Date(remote.updatedAt).getTime()
+        const localDraft = JSON.parse(localRaw) as { status?: string }
+
+        // If remote was updated within last 7 days and is more
+        // complete (sent/ready) than local draft, prefer remote
+        const remoteIsMoreComplete =
+          (remote.draft.status === 'sent' ||
+            remote.draft.status === 'ready') &&
+          localDraft.status === 'draft'
+
+        const remoteIsRecent = remoteAge < 7 * 24 * 60 * 60 * 1000
+
+        if (remoteIsRecent && remoteIsMoreComplete) {
+          setDraft(finalizeDraftWithBaseline(remote.draft))
+          localStorage.setItem(draftStorageKey, JSON.stringify(remote.draft))
+        }
+      },
+    )
   }, [])
 
   useEffect(() => {
