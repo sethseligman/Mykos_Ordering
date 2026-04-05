@@ -5,19 +5,19 @@ import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
 import { AceEndicoVendorWorkspace } from './features/vendors/ace-endico/AceEndicoVendorWorkspace'
 import { DartagnanVendorWorkspace } from './features/vendors/dartagnan/DartagnanVendorWorkspace'
 import { OptimaVendorWorkspace } from './features/vendors/optima/OptimaVendorWorkspace'
+import { GenericVendorWorkspace } from './features/vendors/shared/components/GenericVendorWorkspace'
 import { OrderPortalScreen } from './features/vendors/shared/components/OrderPortalScreen'
 import { SignInScreen, useAuth } from './features/auth'
 
-// TODO: replace hardcoded UUIDs with dynamic vendor registry
-// once vendor admin CRUD is complete in Phase 2
+const KNOWN_VIEWS = ['portal', 'admin', 'addVendor', 'editVendor'] as const
+
+// Portal, admin flows, or any vendor UUID (custom workspaces + generic).
 type ActiveView =
-  | 'portal'
+  | (typeof KNOWN_VIEWS)[number]
   | 'b17c6753-772d-464a-8fc4-b821a34a3dbd'
   | '4059018a-1099-418b-8dac-812e6d85195f'
   | 'f60b1a6c-9aa5-4a96-817c-770951188110'
-  | 'admin'
-  | 'addVendor'
-  | 'editVendor'
+  | (string & {})
 
 function App() {
   const { session, loading } = useAuth()
@@ -34,12 +34,7 @@ function App() {
   }
 
   const openVendor = (vendorId: string) => {
-    if (vendorId === 'b17c6753-772d-464a-8fc4-b821a34a3dbd')
-      setActiveView('b17c6753-772d-464a-8fc4-b821a34a3dbd')
-    else if (vendorId === '4059018a-1099-418b-8dac-812e6d85195f')
-      setActiveView('4059018a-1099-418b-8dac-812e6d85195f')
-    else if (vendorId === 'f60b1a6c-9aa5-4a96-817c-770951188110')
-      setActiveView('f60b1a6c-9aa5-4a96-817c-770951188110')
+    setActiveView(vendorId as ActiveView)
   }
 
   const backToPortal = () => {
@@ -60,6 +55,15 @@ function App() {
   }
   if (activeView === '4059018a-1099-418b-8dac-812e6d85195f') {
     return <AceEndicoVendorWorkspace onBack={backToPortal} />
+  }
+
+  if (
+    !KNOWN_VIEWS.includes(activeView as (typeof KNOWN_VIEWS)[number]) &&
+    activeView.includes('-')
+  ) {
+    return (
+      <GenericVendorWorkspace vendorId={activeView} onBack={backToPortal} />
+    )
   }
 
   if (activeView === 'admin') {

@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib'
+import type { Vendor } from '../../../types/order'
 import type { VendorPlatformConfig } from './vendorConfig'
 
 export type SupabaseVendorRow = {
@@ -77,4 +78,30 @@ export async function fetchVendorConfigs(
 ): Promise<VendorPlatformConfig[]> {
   const rows = await fetchVendors(restaurantId)
   return rows.map(mapSupabaseVendorToConfig)
+}
+
+/** Maps a Supabase vendor row to the legacy `Vendor` type used by headers and order text. */
+export function mapSupabaseVendorRowToVendor(row: SupabaseVendorRow): Vendor {
+  const rep = row.rep_name.trim()
+  const channel: Vendor['channel'] =
+    row.order_placement_method === 'email'
+      ? 'email'
+      : row.order_placement_method === 'portal'
+        ? 'portal'
+        : 'text'
+
+  return {
+    id: row.id,
+    name: row.name,
+    repNames: rep || '—',
+    primaryRepFirstName: rep.split(' ')[0] || '—',
+    channel,
+    orderDays: row.order_days.join(' / '),
+    activeOrderDay: row.order_days[0] ?? '',
+    orderDueDay: row.order_days[0] ?? '',
+    deliveryDay: row.preferred_delivery_days[0] ?? '',
+    channelType: row.order_placement_method === 'email' ? 'email' : 'sms',
+    contactValue: row.destination,
+    sendMode: 'native',
+  }
 }

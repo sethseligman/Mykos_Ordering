@@ -58,6 +58,19 @@ selected placement method:
   native email input type)
 - Portal: validate as a URL
 
+### Generic workspace order status not shown on portal
+For vendors using GenericVendorWorkspace, the portal card 
+does not show sent status or last sent date. The three custom 
+vendors use localStorage for this. Generic vendors should 
+read sent status from Supabase finalized_orders table.
+Fix in Phase 3 when portal status is unified across all vendors.
+
+### Generic workspace sticky action bar not working on mobile
+The sticky bottom action bar fix applied to the three custom 
+order sheets was not applied to GenericVendorWorkspace.
+Apply the same fixed bottom bar pattern to GenericVendorWorkspace
+— same classes as AceEndicoOrderSheet action block wrapper.
+
 ---
 
 ## Phase 3 — Improve Projection Quality
@@ -68,6 +81,11 @@ selected placement method:
 - Tune suggestion logic per vendor using that behavioral data
 - Add lightweight day-of-week and seasonality weighting where it makes sense
 - Add low-friction comparison and reference tools if needed (do not over-engineer)
+- Chat/SMS import for catalog building: allow users to upload 
+  a PDF or text export of their vendor SMS/iMessage history. 
+  Use Claude API to parse conversation and extract a structured 
+  product catalog (name, unit, pack_size). Same preview/confirm 
+  flow as CSV import. Add as Step 3 Card C in the Add Vendor wizard.
 
 ---
 
@@ -91,6 +109,40 @@ selected placement method:
 - Anomaly detection (e.g. "you usually order 7 gallons of milk — today you have 2, is that right?")
 - Replenishment and cadence logic for low-frequency items
 - Multi-restaurant / SaaS architecture layer (enabled by the auth/multi-tenancy schema designed in Phase 1)
+
+---
+
+## Core Architecture Insight — Worksheets vs Vendors
+
+The app currently maps one vendor to one order sheet. 
+This does not reflect how a real kitchen operates.
+
+Real structure:
+- Worksheets = how a chef thinks (Meat, Produce, Dry Goods)
+- Vendors = who supplies the items
+- Relationship = many-to-many and fluid
+
+Examples:
+- Meat worksheet → D'Artagnan + PFD + sometimes Baldor
+- Produce worksheet → Baldor + MFE + seasonal farmers
+- Dry Goods worksheet → Ace/Endico + Baldor + Sogno + La Boite
+- Greek Imports worksheet → Optima + Baldor (kataifi)
+
+This means:
+- A worksheet shows all items across assigned vendors
+- Each item is tagged with which vendor supplies it
+- The chef orders from multiple vendors within one worksheet
+- Vendor assignment per item can change (e.g. switch kataifi 
+  from Optima to Baldor)
+
+Phase 3 work required:
+- Introduce `worksheets` as a first-class database entity
+- Add vendor_id to each catalog item (already exists)
+- Allow multiple vendors per worksheet
+- Order placement sends separate messages per vendor 
+  within the worksheet
+- Suggestion engine works at worksheet level, 
+  not vendor level
 
 ---
 
