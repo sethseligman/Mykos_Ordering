@@ -713,7 +713,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                 />
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                  <div className="min-w-0 flex-1 pb-40 lg:pb-0">
+                  <div className="min-w-0 flex-1 pb-24 lg:pb-0">
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
                       Order checklist
                     </h2>
@@ -931,14 +931,14 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         catalog={mergedCatalog}
                       />
                     </div>
-                    <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-4 border-t border-stone-300 bg-[#f7f5f0] px-4 pt-3 pb-6 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
-                      <div className="flex flex-col gap-2">
+                    <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-1.5 border-t border-stone-300 bg-[#f7f5f0] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
+                      <div className="flex flex-col gap-1.5">
                         {isNativePlacement && draft.status === 'ready' ? (
                           <button
                             type="button"
                             disabled={disableOutboundActions}
                             onClick={() => setPlacementConfirmOpen(true)}
-                            className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-md bg-stone-900 py-1.5 text-xs font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Send via{' '}
                             {placementMethod === 'sms' ? 'SMS' : 'Email'}
@@ -951,34 +951,38 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                               (catalog.length === 0 && !draftHasCustomItems)
                             }
                             onClick={handleGenerate}
-                            className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-md bg-stone-900 py-1.5 text-xs font-semibold text-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {isPortalOrOtherPlacement
                               ? 'Generate order sheet'
                               : 'Generate order text'}
                           </button>
                         )}
-                        <button
-                          type="button"
-                          disabled={disableOutboundActions || draft.status !== 'ready'}
-                          onClick={() => void handleCopy()}
-                          className="w-full rounded-md border border-stone-300 bg-white py-2.5 text-sm font-semibold text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {copyAcknowledged ? 'Copied!' : 'Copy order text'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            disableOutboundActions ||
-                            draft.status !== 'ready'
-                          }
-                          onClick={handleMarkSent}
-                          className="w-full rounded-md border border-stone-600 bg-stone-100 py-2.5 text-sm font-semibold text-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isPortalOrOtherPlacement
-                            ? 'Mark as placed'
-                            : 'Mark as sent'}
-                        </button>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            disabled={
+                              disableOutboundActions || draft.status !== 'ready'
+                            }
+                            onClick={() => void handleCopy()}
+                            className="min-w-0 flex-1 rounded-md border border-stone-300 bg-white py-1.5 text-xs font-semibold text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {copyAcknowledged ? 'Copied!' : 'Copy'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              disableOutboundActions ||
+                              draft.status !== 'ready'
+                            }
+                            onClick={handleMarkSent}
+                            className="min-w-0 flex-1 rounded-md border border-stone-600 bg-stone-100 py-1.5 text-xs font-semibold text-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isPortalOrOtherPlacement
+                              ? 'Mark as placed'
+                              : 'Mark as sent'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

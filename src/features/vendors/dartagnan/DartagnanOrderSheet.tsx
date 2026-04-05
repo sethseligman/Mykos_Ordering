@@ -753,7 +753,7 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
           ) : null}
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
-            <div className="space-y-6 pb-40 lg:pb-0">
+            <div className="space-y-6 pb-24 lg:pb-0">
               <section aria-labelledby="checklist-heading">
                 <h2
                   id="checklist-heading"
@@ -856,61 +856,54 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
                   {outboundNotice}
                 </p>
               ) : null}
-              <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-4 border-t border-stone-300 bg-[#f7f5f0] px-4 pt-3 pb-6 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
-              <button
-                type="button"
-                onClick={() => setPlacementConfirmOpen(true)}
-                disabled={disableOutboundActions}
-                className="rounded-md border border-stone-800 bg-stone-900 px-4 py-2.5 text-sm font-semibold text-stone-50 shadow-sm hover:bg-stone-800 active:bg-stone-950 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Ready to place order
-              </button>
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:flex-col">
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  disabled={disableOutboundActions}
-                  title={
-                    disableOutboundActions
-                      ? 'Set a valid delivery day to generate order text.'
-                      : undefined
-                  }
-                  className="rounded-md border border-stone-400 bg-white px-4 py-2.5 text-sm font-semibold text-stone-900 shadow-sm hover:bg-stone-50 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  Generate order text
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  disabled={disableOutboundActions}
-                  title={
-                    disableOutboundActions
-                      ? 'Set a valid delivery day to copy order text.'
-                      : undefined
-                  }
-                  className="rounded-md border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-sm hover:bg-stone-50 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {copyAcknowledged ? 'Copied ✓' : 'Copy order text'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMarkSent}
-                  disabled={
-                    draft.status !== 'ready' || disableOutboundActions
-                  }
-                  title={
-                    disableOutboundActions
-                      ? 'Set a valid delivery day before marking sent.'
-                      : draft.status === 'ready'
-                        ? undefined
-                        : 'Generate order text first to mark this sheet as sent.'
-                  }
-                  className="rounded-md border border-transparent bg-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-300 active:bg-stone-400/80 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-stone-200"
-                >
-                  Mark as sent
-                </button>
-              </div>
+              <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-1.5 border-t border-stone-300 bg-[#f7f5f0] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:p-0">
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    disabled={disableOutboundActions}
+                    title={
+                      disableOutboundActions
+                        ? 'Set a valid delivery day to generate order text.'
+                        : undefined
+                    }
+                    className="w-full rounded-md border border-stone-400 bg-white py-1.5 text-xs font-semibold text-stone-900 shadow-sm hover:bg-stone-50 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    Generate order text
+                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      disabled={disableOutboundActions}
+                      title={
+                        disableOutboundActions
+                          ? 'Set a valid delivery day to copy order text.'
+                          : undefined
+                      }
+                      className="min-w-0 flex-1 rounded-md border border-stone-300 bg-white py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {copyAcknowledged ? 'Copied ✓' : 'Copy order text'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleMarkSent}
+                      disabled={
+                        draft.status !== 'ready' || disableOutboundActions
+                      }
+                      title={
+                        disableOutboundActions
+                          ? 'Set a valid delivery day before marking sent.'
+                          : draft.status === 'ready'
+                            ? undefined
+                            : 'Generate order text first to mark this sheet as sent.'
+                      }
+                      className="min-w-0 flex-1 rounded-md border border-transparent bg-stone-200 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-300 active:bg-stone-400/80 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-stone-200"
+                    >
+                      Mark as sent
+                    </button>
+                  </div>
+                </div>
               </div>
             </aside>
           </div>
