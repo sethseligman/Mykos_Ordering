@@ -66,46 +66,23 @@ export async function saveDraftToSupabase(
 ): Promise<void> {
   // Fire-and-forget: localStorage is source of truth
   try {
-    const { data: existingRows, error: selectError } = await supabase
+    const { error } = await supabase
       .from('order_drafts')
-      .select('id')
-      .eq('vendor_id', vendorId)
-      .eq('restaurant_id', RESTAURANT_ID)
-      .order('updated_at', { ascending: false })
-      .limit(1)
+      .upsert(
+        {
+          vendor_id: vendorId,
+          restaurant_id: RESTAURANT_ID,
+          delivery_date: draft.deliveryDate,
+          items: draft,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'vendor_id,restaurant_id',
+        },
+      )
 
-    if (selectError) {
-      console.error('saveDraftToSupabase: select failed', selectError.message)
-      return
-    }
-
-    const existingId = existingRows?.[0]?.id as string | undefined
-    const payload = {
-      delivery_date: draft.deliveryDate,
-      items: draft,
-      updated_at: new Date().toISOString(),
-    }
-
-    if (existingId) {
-      const { error: updateError } = await supabase
-        .from('order_drafts')
-        .update(payload)
-        .eq('id', existingId)
-
-      if (updateError) {
-        console.error('saveDraftToSupabase: update failed', updateError.message)
-      }
-      return
-    }
-
-    const { error: insertError } = await supabase.from('order_drafts').insert({
-      vendor_id: vendorId,
-      restaurant_id: RESTAURANT_ID,
-      ...payload,
-    })
-
-    if (insertError) {
-      console.error('saveDraftToSupabase: insert failed', insertError.message)
+    if (error) {
+      console.error('saveDraftToSupabase: upsert failed', error.message)
     }
   } catch (err) {
     console.error('saveDraftToSupabase: unexpected error', err)
