@@ -427,6 +427,11 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     !scheduleValidation.isValid &&
     schedulingRules?.invalidDateStrategy !== 'allow_blank_order'
 
+  const hasIncludedItems =
+    draft?.items.some(
+      (i) => i.included && i.quantity.trim() !== '',
+    ) ?? false
+
   const lockChecklist =
     draft != null &&
     !scheduleValidation.isValid &&
@@ -742,7 +747,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                 />
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                  <div className="min-w-0 flex-1 pb-6 lg:pb-0">
+                  <div className="min-w-0 flex-1 pb-24 lg:pb-0">
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
                       Order checklist
                     </h2>
@@ -1018,7 +1023,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
         </div>
       </div>
       {tab === 'current' ? (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
           <button
             type="button"
             onClick={() => void handleSaveDraft()}
@@ -1037,14 +1042,15 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
             }}
             disabled={
               disableOutboundActions ||
+              !hasIncludedItems ||
               (catalog.length === 0 &&
-                !draft.items.some((i) =>
+                !draft?.items.some((i) =>
                   i.vendorItemId.startsWith('custom:'),
                 ))
             }
             className="flex-1 rounded-lg bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
           >
-            Finalize Order
+            {!hasIncludedItems ? 'Add items to finalize' : 'Finalize Order'}
           </button>
         </div>
       ) : null}

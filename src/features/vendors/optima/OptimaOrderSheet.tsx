@@ -452,6 +452,10 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
     !scheduleValidation.isValid &&
     optimaSchedulingRules.invalidDateStrategy !== 'allow_blank_order'
 
+  const hasIncludedItems = draft.items.some(
+    (i) => i.included && i.quantity.trim() !== '',
+  )
+
   const lockChecklist =
     !scheduleValidation.isValid &&
     optimaSchedulingRules.invalidDateStrategy === 'block_order'
@@ -719,7 +723,7 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
           ) : null}
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
-            <div className="space-y-6 pb-6 lg:pb-0">
+            <div className="space-y-6 pb-24 lg:pb-0">
               <section aria-labelledby="checklist-heading">
                 <h2
                   id="checklist-heading"
@@ -828,7 +832,7 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
             onNativeSendWillOpen={logNativeSendExecution}
             disableActions={disableOutboundActions}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
             <button
               type="button"
               onClick={() => void handleSaveDraft()}
@@ -845,10 +849,10 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
                 }
                 setFinalizeModalOpen(true)
               }}
-              disabled={disableOutboundActions}
+              disabled={disableOutboundActions || !hasIncludedItems}
               className="flex-1 rounded-lg bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
             >
-              Finalize Order
+              {!hasIncludedItems ? 'Add items to finalize' : 'Finalize Order'}
             </button>
           </div>
     </div>
