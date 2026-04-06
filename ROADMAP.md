@@ -32,44 +32,54 @@
 - Ensure vendor settings, scheduling rules, and outbound behavior are fully coherent across all vendors
 - Document a repeatable "how to add a vendor" process (even informal) before adding vendor 4+
 
-## Known UX debt from Phase 1
+## Known UX Debt (Clear before Phase 3)
 
-### Order placement flow is split and confusing
-Two paths exist for placing an order:
-- Manual: Generate order text → copy → Mark as sent
-- Automated: Ready to place order → confirm modal → SMS fires
+### Mobile header cleanup (all order sheets + GenericVendorWorkspace)
+- Remove rep name from header — lives in Settings tab only
+- Remove "Greeting" field from order sheet header — belongs in Settings
+- Remove redundant Channel display from metadata bar (already in header)
+- Move Delivery Date up directly below vendor name — it's the 2nd most
+  important field and is currently buried
+- Drop "Order Checklist" label — redundant given tab context
+- Clean header hierarchy: Vendor Name · Channel → Delivery Date → 
+  Status badge → Tabs
 
-These are disconnected. Confirming in the modal does not mark 
-the order as sent. Fix in Phase 2:
-- Add `order_mode: 'manual' | 'automated'` to vendor settings 
-  (schema + UI)
-- In automated mode: confirming the placement modal should 
-  trigger mark-as-sent automatically
-- In manual mode: keep the current generate → copy → mark sent flow
-- Consider whether both paths should even exist per vendor or 
-  if one should be removed entirely
+### Status badge logic
+- Badge on open should always be "Draft" regardless of history state
+- History pre-population does not constitute a ready order
+- Badge progression: Draft → Ready (after generate) → Sent
+- Remove "Generated 08:17 PM" timestamp — meaningless at a glance
+- Sent timestamp only shown after status = Sent
 
-### Destination field needs format validation
-In both AddVendorScreen and EditVendorScreen, the destination 
-field accepts any text. Add format validation based on the 
-selected placement method:
-- SMS: validate as a phone number (E.164 format or US format)
-- Email: validate as an email address (basic regex or browser 
-  native email input type)
-- Portal: validate as a URL
+### Sticky bottom bar fix
+- Root cause: overflow-hidden on shell div kills sticky positioning
+- Fix: swap overflow-hidden → overflow-clip on shellClass in
+  AceEndicoOrderSheet, OptimaOrderSheet, DartagnanOrderSheet
+- GenericVendorWorkspace sticky bar is outside the card div so
+  structurally correct — if still broken check App.tsx for
+  overflow-hidden on page wrapper
 
-### Generic workspace order status not shown on portal
-For vendors using GenericVendorWorkspace, the portal card 
-does not show sent status or last sent date. The three custom 
-vendors use localStorage for this. Generic vendors should 
-read sent status from Supabase finalized_orders table.
-Fix in Phase 3 when portal status is unified across all vendors.
+### Desktop action bar
+- Bottom bar gets lg:hidden — does not belong on desktop
+- Save + Finalize buttons move into right-rail OrderCartSummaryPanel
+  on lg+ breakpoint
 
-### Generic workspace sticky action bar not working on mobile
-The sticky bottom action bar fix applied to the three custom 
-order sheets was not applied to GenericVendorWorkspace.
-Apply the same fixed bottom bar pattern to GenericVendorWorkspace
-— same classes as AceEndicoOrderSheet action block wrapper.
+### History pre-population — change default behavior
+- Order sheets should open BLANK by default (zero items checked)
+- Chef initiates population explicitly via "Build from history" button
+- Rationale: pre-population leads to complacency, over-ordering,
+  missed items; blank start keeps chef in the loop
+- "Apply from history" → rename to "Build from history"
+- "Clear all" remains but visually secondary to "Build from history"
+- Draft save behavior: if chef does not save, sheet resets to blank
+  on next open
+
+### Last Order (LO) toggle — Phase 3, not now
+- Small "LO" button to the left of QTY column on checklist
+- Tap reveals last order quantities as ghost layer (grey, italic,
+  smaller font) beside every qty input
+- Tap again to hide — opt-in, zero default real estate cost
+- Hold until sufficient real order history exists to avoid empty states
 
 ---
 

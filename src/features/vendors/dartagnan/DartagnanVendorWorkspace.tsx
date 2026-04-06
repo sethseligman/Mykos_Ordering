@@ -112,7 +112,7 @@ export function DartagnanVendorWorkspace({ onBack }: Props) {
           Back to portal
         </button>
 
-        <div className="overflow-hidden rounded-lg border border-stone-400/90 bg-[#f7f5f0] shadow-sm">
+        <div className="overflow-clip rounded-lg border border-stone-400/90 bg-[#f7f5f0] shadow-sm">
           <VendorHeader vendor={dartagnanVendor} />
 
           <div

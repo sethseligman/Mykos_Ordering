@@ -693,7 +693,7 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
 
   const shellClass = embedded
     ? 'font-sans text-stone-800'
-    : 'overflow-hidden rounded-lg border border-stone-400/90 bg-[#f7f5f0] font-sans text-stone-800 shadow-[0_2px_0_rgba(28,25,23,0.06),0_12px_32px_-8px_rgba(28,25,23,0.12)]'
+    : 'overflow-clip rounded-lg border border-stone-400/90 bg-[#f7f5f0] font-sans text-stone-800 shadow-[0_2px_0_rgba(28,25,23,0.06),0_12px_32px_-8px_rgba(28,25,23,0.12)]'
 
   const optimaPlacement = resolveVendorPlatformConfig(optimaPlatformConfig)
     .settings.orderPlacement
