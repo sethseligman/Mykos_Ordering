@@ -87,26 +87,32 @@ function toWeekdays(days: string[]): Weekday[] {
 function schedulingRulesFromRow(
   row: SupabaseVendorRow,
 ): VendorSchedulingRules {
-  let validDeliveryDays = toWeekdays(row.available_delivery_days)
-  if (validDeliveryDays.length === 0) {
-    validDeliveryDays = toWeekdays(row.preferred_delivery_days)
+  const allWeek: Weekday[] = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ]
+  let vendorDeliveryDays = toWeekdays(row.available_delivery_days)
+  if (vendorDeliveryDays.length === 0) {
+    vendorDeliveryDays = allWeek
   }
-  if (validDeliveryDays.length === 0) {
-    validDeliveryDays = [
-      'sunday',
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-    ]
+  let preferredDeliveryDays = toWeekdays(row.preferred_delivery_days)
+  if (preferredDeliveryDays.length === 0) {
+    preferredDeliveryDays = toWeekdays(row.available_delivery_days)
+  }
+  if (preferredDeliveryDays.length === 0) {
+    preferredDeliveryDays = allWeek
   }
   const validOrderDays = toWeekdays(row.order_days)
   return {
     vendorId: row.id,
     vendorDisplayName: row.name,
-    validDeliveryDays,
+    vendorDeliveryDays,
+    preferredDeliveryDays,
     validOrderDays: validOrderDays.length > 0 ? validOrderDays : undefined,
     invalidDateStrategy: 'suggest_next_valid_date',
   }

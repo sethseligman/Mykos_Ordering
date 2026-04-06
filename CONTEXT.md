@@ -140,9 +140,14 @@ src/
 ---
 
 ## Known UX Debt (Fix Before Phase 3 Features)
-1. **Sticky bottom bar** — root cause is overflow-hidden on shell div;
-   fix is overflow-clip. Bottom bar should be lg:hidden; desktop actions
-   move to right-rail sidebar.
+1. ~~**Mobile sticky bottom bar**~~ — FIXED (phase-2/mobile-ux-debt).
+   Root cause was overflow-hidden on both the workspace wrapper and order
+   sheet shell divs. Fixed with overflow-clip in all three custom workspace
+   files and all three order sheet files.
+   NOTE: A previous revert commit (ecbab2c — "Revert sticky top metadata bar
+   with Save/Finalize on desktop") indicates a prior attempt at desktop
+   right-rail actions that was rolled back. Review that commit before
+   implementing desktop right-rail Save/Finalize buttons.
 2. **Portal status labels** — update to: Draft / Ready to place / Sent
 3. **Ace/Endico SMS button ghosted** — undiagnosed
 4. **Desktop layout** — needs fresh approach; bottom bar is mobile-only

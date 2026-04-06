@@ -18,7 +18,7 @@ function findNextValidDeliveryDateIso(
   const start = new Date(`${raw}T12:00:00`)
   if (Number.isNaN(start.getTime())) return null
 
-  const allowed = new Set<Weekday>(rules.validDeliveryDays)
+  const allowed = new Set<Weekday>(rules.preferredDeliveryDays)
   for (let i = 0; i <= maxScanDays; i++) {
     const t = new Date(start)
     t.setDate(start.getDate() + i)
@@ -39,7 +39,7 @@ function findNextValidDeliveryDateIso(
 }
 
 /**
- * First delivery day in `rules.validDeliveryDays` on or after local “today” (ISO date).
+ * First delivery day in `rules.preferredDeliveryDays` on or after local “today” (ISO date).
  */
 export function defaultDeliveryDateForScheduling(
   rules: VendorSchedulingRules,
@@ -65,7 +65,7 @@ export function validateVendorDeliveryDate(
     }
   }
 
-  const isValid = rules.validDeliveryDays.includes(weekday)
+  const isValid = rules.preferredDeliveryDays.includes(weekday)
   const standingLines = rules.standingOrderRules?.[weekday]
   const applyStandingOrders =
     isValid && !!standingLines && standingLines.length > 0
@@ -85,7 +85,7 @@ export function validateVendorDeliveryDate(
   let message: string | undefined
   if (!isValid) {
     const deliveryLabel = formatWeekdayListForMessage(
-      rules.validDeliveryDays,
+      rules.preferredDeliveryDays,
     )
     message = `${rules.vendorDisplayName} only delivers on ${deliveryLabel}.`
     if (rules.validOrderDays?.length) {

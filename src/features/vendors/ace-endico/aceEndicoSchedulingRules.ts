@@ -15,25 +15,34 @@ const WEEKDAY_MAP: Record<string, Weekday> = {
 export const aceEndicoSchedulingRules: VendorSchedulingRules = {
   vendorId: 'ace-endico',
   vendorDisplayName: 'Ace / Endico',
-  validDeliveryDays: ['wednesday'],
+  vendorDeliveryDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+  preferredDeliveryDays: ['wednesday'],
   validOrderDays: ['monday'],
   invalidDateStrategy: 'suggest_next_valid_date',
 }
 
 export function aceEndicoSchedulingRulesFromSettings(): VendorSchedulingRules {
   const resolved = resolveVendorPlatformConfig(aceEndicoPlatformConfig)
-  const validDeliveryDays = resolved.settings.orderCadence.availableDeliveryDays
-    .map((d) => WEEKDAY_MAP[d.trim().toLowerCase()])
-    .filter(Boolean)
+  const preferredDeliveryDaysFromSettings =
+    resolved.settings.orderCadence.availableDeliveryDays
+      .map((d) => WEEKDAY_MAP[d.trim().toLowerCase()])
+      .filter(Boolean)
   const validOrderDays = resolved.settings.orderCadence.orderDays
     .map((d) => WEEKDAY_MAP[d.trim().toLowerCase()])
     .filter(Boolean)
   return {
     ...aceEndicoSchedulingRules,
-    validDeliveryDays:
-      validDeliveryDays.length > 0
-        ? (validDeliveryDays as Weekday[])
-        : aceEndicoSchedulingRules.validDeliveryDays,
+    vendorDeliveryDays: [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+    ],
+    preferredDeliveryDays:
+      preferredDeliveryDaysFromSettings.length > 0
+        ? (preferredDeliveryDaysFromSettings as Weekday[])
+        : aceEndicoSchedulingRules.preferredDeliveryDays,
     validOrderDays:
       validOrderDays.length > 0
         ? (validOrderDays as Weekday[])

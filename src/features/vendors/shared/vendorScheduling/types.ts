@@ -23,7 +23,12 @@ export type VendorSchedulingRules = {
   vendorId: string
   /** For user-facing validation messages */
   vendorDisplayName: string
-  validDeliveryDays: Weekday[]
+  // Days the vendor is actually available to deliver — hard constraint.
+  // Selecting a date outside these days should warn the user.
+  vendorDeliveryDays: Weekday[]
+  // Days this restaurant prefers to receive deliveries — soft preference.
+  // Selecting a date outside these days is allowed but noted.
+  preferredDeliveryDays: Weekday[]
   /** Optional: shown in copy only (not used to gate delivery-date validation yet). */
   validOrderDays?: Weekday[]
   standingOrderRules?: Partial<Record<Weekday, StandingOrderLineRule[]>>

@@ -106,14 +106,6 @@ const SUPABASE_VENDOR_ID = 'b17c6753-772d-464a-8fc4-b821a34a3dbd'
 
 const DARTAGNAN_REP_SET = new Set<string>(dartagnanRepFirstNameOptions)
 
-const CHANNEL_DISPLAY: Record<OrderChannel, string> = {
-  text: 'Text',
-  email: 'Email',
-  phone: 'Phone',
-  portal: 'Portal',
-  other: 'Other',
-}
-
 function finalizeDraftWithBaseline(draft: OrderDraft): OrderDraft {
   const snap = readLastSentOrderSnapshot(dartagnanVendor.id)
   return {
@@ -350,13 +342,15 @@ function OrderMetadataBar({
   onDeliveryDateChange,
   onRepFirstNameChange,
 }: OrderMetadataBarProps) {
+  void channel
+  void lastGeneratedAt
   return (
     <div
-      className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-stone-200 bg-[#f2efe8] px-4 py-2.5"
+      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-stone-200 bg-[#f2efe8] px-4 py-2.5"
       aria-label="Order record"
     >
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-        <div className="flex min-w-[9.5rem] flex-col gap-0.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex flex-col gap-0.5">
           <label
             htmlFor="order-delivery-date"
             className="text-[10px] font-semibold uppercase tracking-wide text-stone-500"
@@ -371,7 +365,7 @@ function OrderMetadataBar({
             className="rounded border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400"
           />
         </div>
-        <div className="flex min-w-[7.5rem] flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5">
           <label
             htmlFor="order-rep"
             className="text-[10px] font-semibold uppercase tracking-wide text-stone-500"
@@ -391,34 +385,16 @@ function OrderMetadataBar({
             ))}
           </select>
         </div>
-        <div className="flex flex-col gap-0.5 pb-px">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-            Channel
-          </span>
-          <span className="text-sm font-medium text-stone-800">
-            {CHANNEL_DISPLAY[channel]}
-          </span>
-        </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+      <div className="flex items-center gap-x-3">
         <span
           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusUi.className}`}
         >
           {statusUi.label}
         </span>
-        {lastGeneratedAt != null &&
-          (status === 'ready' || status === 'sent') && (
-            <span className="text-xs text-stone-500">
-              Generated{' '}
-              {new Date(lastGeneratedAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          )}
         {status === 'sent' && sentAt != null && (
           <span className="text-xs text-stone-500">
-            Sent at{' '}
+            Sent{' '}
             {new Date(sentAt).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
