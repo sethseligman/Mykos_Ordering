@@ -747,7 +747,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                 />
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                  <div className="min-w-0 flex-1 pb-24 lg:pb-0">
+                  <div className="min-w-0 flex-1 pb-0">
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
                       Order checklist
                     </h2>
@@ -1023,7 +1023,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
         </div>
       </div>
       {tab === 'current' ? (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
+        <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4">
           <button
             type="button"
             onClick={() => void handleSaveDraft()}

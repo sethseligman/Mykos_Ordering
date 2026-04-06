@@ -723,7 +723,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
           ) : null}
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
-            <div className="space-y-6 pb-24 lg:pb-0">
+            <div className="space-y-6 pb-0">
               <section aria-labelledby="checklist-heading">
                 <h2
                   id="checklist-heading"
@@ -832,7 +832,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
             onNativeSendWillOpen={logNativeSendExecution}
             disableActions={disableOutboundActions}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#f7f5f0] border-t border-stone-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 flex gap-2 lg:static lg:z-auto lg:border-t-0 lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
+          <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4">
             <button
               type="button"
               onClick={() => void handleSaveDraft()}
