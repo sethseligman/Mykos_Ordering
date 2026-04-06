@@ -693,46 +693,79 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
           <div className="p-3 sm:p-4" role="tabpanel">
             {tab === 'current' && (
               <>
-                <VendorDeliveryDateBanner
-                  validation={scheduleValidation}
-                  invalidDateStrategy={schedulingRules.invalidDateStrategy}
-                  onUseSuggestedDate={(iso) =>
-                    bumpDraft((d) => ({ ...d, deliveryDate: iso }))
-                  }
-                />
+                <div className="lg:sticky lg:top-0 lg:z-20 lg:bg-[#f7f5f0] lg:border-b lg:border-stone-200 lg:px-6 lg:py-3">
+                  <VendorDeliveryDateBanner
+                    validation={scheduleValidation}
+                    invalidDateStrategy={schedulingRules.invalidDateStrategy}
+                    onUseSuggestedDate={(iso) =>
+                      bumpDraft((d) => ({ ...d, deliveryDate: iso }))
+                    }
+                  />
 
-                <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                  <label className="text-xs font-semibold text-stone-600">
-                    Delivery date
-                    <input
-                      type="date"
-                      value={draft.deliveryDate}
-                      disabled={lockChecklist}
-                      onChange={(e) =>
-                        bumpDraft((d) => ({
-                          ...d,
-                          deliveryDate: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full max-w-xs rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 disabled:opacity-60"
-                    />
-                  </label>
-                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusUi.className}`}
+                  <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Delivery date
+                      <input
+                        type="date"
+                        value={draft.deliveryDate}
+                        disabled={lockChecklist}
+                        onChange={(e) =>
+                          bumpDraft((d) => ({
+                            ...d,
+                            deliveryDate: e.target.value,
+                          }))
+                        }
+                        className="mt-1 w-full max-w-xs rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 disabled:opacity-60"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusUi.className}`}
+                      >
+                        {statusUi.label}
+                      </span>
+                      {lastGeneratedAt != null &&
+                        (draft.status === 'ready' || draft.status === 'sent') && (
+                          <span className="text-xs text-stone-500">
+                            Generated{' '}
+                            {new Date(lastGeneratedAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="hidden lg:flex lg:items-center lg:gap-2 lg:px-6 lg:pb-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveDraft()}
+                      disabled={saving}
+                      className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 disabled:opacity-40 whitespace-nowrap"
                     >
-                      {statusUi.label}
-                    </span>
-                    {lastGeneratedAt != null &&
-                      (draft.status === 'ready' || draft.status === 'sent') && (
-                        <span className="text-xs text-stone-500">
-                          Generated{' '}
-                          {new Date(lastGeneratedAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      )}
+                      {saveAck ? 'Saved ✓' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (draft.status === 'draft') {
+                          handleGenerate()
+                        }
+                        setFinalizeModalOpen(true)
+                      }}
+                      disabled={
+                        disableOutboundActions ||
+                        !hasIncludedItems ||
+                        (catalog.length === 0 &&
+                          !draft?.items.some((i) =>
+                            i.vendorItemId.startsWith('custom:'),
+                          ))
+                      }
+                      className="flex-1 rounded-lg bg-stone-900 py-2 text-sm font-semibold text-stone-50 disabled:opacity-40"
+                    >
+                      {!hasIncludedItems ? 'Add items to finalize' : 'Finalize Order'}
+                    </button>
                   </div>
                 </div>
 
@@ -948,7 +981,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                     )}
                   </div>
 
-                  <div className="w-full shrink-0 space-y-3 lg:w-72">
+                  <div className="w-full shrink-0 space-y-3 lg:sticky lg:top-24 lg:w-72">
                     {showReadyPlacementBanner ? (
                       <div
                         className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900"
@@ -1023,7 +1056,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
         </div>
       </div>
       {tab === 'current' ? (
-        <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4">
+        <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4 lg:hidden">
           <button
             type="button"
             onClick={() => void handleSaveDraft()}

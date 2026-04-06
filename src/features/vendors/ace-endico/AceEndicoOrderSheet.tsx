@@ -701,15 +701,38 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
 
   return (
     <div className={shellClass}>
-          <AceEndicoMetadataBar
-            deliveryDate={draft.deliveryDate}
-            channel={aceEndicoVendor.channel}
-            status={status}
-            statusUi={statusUi}
-            lastGeneratedAt={lastGeneratedAt}
-            sentAt={sentAt}
-            onDeliveryDateChange={setDeliveryDate}
-          />
+          <div className="lg:sticky lg:top-0 lg:z-20 lg:bg-[#f7f5f0] lg:border-b lg:border-stone-200">
+            <AceEndicoMetadataBar
+              deliveryDate={draft.deliveryDate}
+              channel={aceEndicoVendor.channel}
+              status={status}
+              statusUi={statusUi}
+              lastGeneratedAt={lastGeneratedAt}
+              sentAt={sentAt}
+              onDeliveryDateChange={setDeliveryDate}
+            />
+            <div className="hidden lg:flex lg:items-center lg:gap-2 lg:px-6 lg:pb-3">
+              <button
+                type="button"
+                onClick={() => void handleSaveDraft()}
+                disabled={saving}
+                className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 disabled:opacity-40 whitespace-nowrap"
+              >
+                {saveAck ? 'Saved ✓' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (draft.status === 'draft') handleGenerate()
+                  setFinalizeModalOpen(true)
+                }}
+                disabled={disableOutboundActions || !hasIncludedItems}
+                className="flex-1 rounded-lg bg-stone-900 py-2 text-sm font-semibold text-stone-50 disabled:opacity-40"
+              >
+                {!hasIncludedItems ? 'Add items to finalize' : 'Finalize Order'}
+              </button>
+            </div>
+          </div>
 
           <VendorDeliveryDateBanner
             validation={scheduleValidation}
@@ -809,7 +832,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
               </section>
             </div>
 
-            <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+            <aside className="hidden lg:flex lg:flex-col lg:gap-4 lg:sticky lg:top-24">
               <div className="hidden lg:block">
                 <OrderCartSummaryPanel
                   items={draft.items}
@@ -832,7 +855,7 @@ export function AceEndicoOrderSheet({ embedded, onSent }: Props) {
             onNativeSendWillOpen={logNativeSendExecution}
             disableActions={disableOutboundActions}
           />
-          <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4">
+          <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4 lg:hidden">
             <button
               type="button"
               onClick={() => void handleSaveDraft()}
