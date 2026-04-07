@@ -158,6 +158,22 @@ function buildEmptyOrderItems(catalog: VendorItem[]): OrderItem[] {
   }))
 }
 
+function resetItemsToBlank(
+  items: OrderItem[],
+  catalog: VendorItem[],
+): OrderItem[] {
+  const catalogIds = new Set(catalog.map((c) => c.id))
+  return items.map((row) => {
+    if (row.vendorItemId.startsWith('custom:')) return row
+    if (!catalogIds.has(row.vendorItemId)) return row
+    return {
+      ...row,
+      included: false,
+      quantity: '',
+    }
+  })
+}
+
 function mergeDraftWithCatalog(
   parsed: OrderDraft | null,
   catalog: VendorItem[],
@@ -172,7 +188,10 @@ function mergeDraftWithCatalog(
       vendorId,
       deliveryDate,
       repFirstName,
-      items: applyLastSentBaselineToOrderItems(template, catalog, snapshot),
+      items: resetItemsToBlank(
+        applyLastSentBaselineToOrderItems(template, catalog, snapshot),
+        catalog,
+      ),
       internalNotes: '',
       vendorNotes: '',
       status: 'draft',
@@ -199,12 +218,19 @@ function mergeDraftWithCatalog(
     catalog,
     snapshot,
   )
+  const finalItems =
+    parsed.status === 'draft'
+      ? [
+          ...resetItemsToBlank(baselinedCatalogRows, catalog),
+          ...customItems,
+        ]
+      : [...baselinedCatalogRows, ...customItems]
   return {
     ...parsed,
     vendorId,
     deliveryDate: parsed.deliveryDate || deliveryDate,
     repFirstName: parsed.repFirstName?.trim() || repFirstName,
-    items: [...baselinedCatalogRows, ...customItems],
+    items: finalItems,
   }
 }
 
@@ -542,11 +568,14 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
       items: buildEmptyOrderItems(catalog),
     }))
     setCustomNames(new Map())
-    checklistRebuild.markChecklistRebuiltForCurrentDate()
   }
 
   const handleBuildFromHistory = useCallback(() => {
-    if (!scheduleValidation.applyHistorySuggestions) return
+    if (
+      !scheduleValidation.isValid &&
+      schedulingRules?.invalidDateStrategy === 'block_order'
+    )
+      return
     if (suggestionHistory.length === 0) return
     const suggested = generateSuggestedOrderItemsFromHistory(
       suggestionHistory,
@@ -562,7 +591,8 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   }, [
     suggestionHistory,
     catalog,
-    scheduleValidation.applyHistorySuggestions,
+    scheduleValidation.isValid,
+    schedulingRules?.invalidDateStrategy,
     bumpDraft,
     checklistRebuild,
   ])
@@ -783,6 +813,10 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const showChecklistTable = catalog.length > 0 || draftHasCustomItems
   const includedItemCount = draft.items.filter((i) => i.included).length
 
+  const blockBuildFromHistoryByDate =
+    !scheduleValidation.isValid &&
+    schedulingRules.invalidDateStrategy === 'block_order'
+
   return (
     <div className="min-h-dvh bg-[#e8e4dc] font-sans text-stone-800">
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-6">
@@ -795,7 +829,14 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
         </button>
 
         <div className="overflow-hidden rounded-lg border border-stone-400/90 bg-[#f7f5f0] shadow-sm">
-          <VendorHeader vendor={vendor} />
+          <VendorHeader
+            vendor={vendor}
+            repName={vendorRow.rep_name ?? undefined}
+            preferredDeliveryDays={vendorRow.preferred_delivery_days}
+            orderMinimum={String(vendorRow.order_minimum)}
+            cutoffTime={vendorRow.order_cutoff_time}
+            orderingNotes={vendorRow.ordering_notes ?? undefined}
+          />
 
           <div
             className="border-b border-stone-200 bg-stone-100/70 px-3 py-3 sm:px-4"
@@ -878,13 +919,13 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                       onBuildFromHistory={handleBuildFromHistory}
                       onClearAll={clearAllItems}
                       buildFromHistoryEnabled={
-                        scheduleValidation.applyHistorySuggestions &&
+                        !blockBuildFromHistoryByDate &&
                         suggestionHistory.length > 0
                       }
                       buildFromHistoryTitle={
                         suggestionHistory.length === 0
                           ? 'No order history yet.'
-                          : !scheduleValidation.applyHistorySuggestions
+                          : blockBuildFromHistoryByDate
                             ? 'Pick a valid delivery day before building from history.'
                             : undefined
                       }
