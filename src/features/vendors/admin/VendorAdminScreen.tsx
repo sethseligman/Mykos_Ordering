@@ -147,10 +147,7 @@ export function VendorAdminScreen({
                   <p className="mt-1 text-sm text-stone-500 break-words">
                     {vendor.category}
                   </p>
-                  <p className="mt-2 text-sm text-stone-700 break-words">
-                    {vendor.order_days.join(' / ')}
-                  </p>
-                  <p className="mt-1 text-sm text-stone-600 break-words">
+                  <p className="mt-2 text-sm text-stone-600 break-words">
                     {placementDisplay(vendor.order_placement_method)}
                     {' · '}
                     {vendor.destination}

@@ -9,6 +9,7 @@ export type SupabaseVendorRow = {
   category: string
   rep_name: string
   order_days: string[]
+  ordering_notes: string | null
   available_delivery_days: string[]
   preferred_delivery_days: string[]
   order_minimum: number

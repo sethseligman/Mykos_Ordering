@@ -49,7 +49,6 @@ type FieldKey =
   | 'name'
   | 'category'
   | 'destination'
-  | 'order_days'
   | 'available_delivery_days'
   | 'preferred_delivery_days'
   | 'order_cutoff_time'
@@ -137,7 +136,6 @@ export function AddVendorScreen({ onBack }: Props) {
   const [destination, setDestination] = useState('')
   const [vendorNotes, setVendorNotes] = useState('')
 
-  const [orderDays, setOrderDays] = useState<string[]>([])
   const [availableDeliveryDays, setAvailableDeliveryDays] = useState<string[]>(
     [],
   )
@@ -146,6 +144,7 @@ export function AddVendorScreen({ onBack }: Props) {
   >([])
   const [orderMinimum, setOrderMinimum] = useState('0')
   const [orderCutoffTime, setOrderCutoffTime] = useState('5:00 PM')
+  const [orderingNotes, setOrderingNotes] = useState('')
 
   const [catalogSource, setCatalogSource] = useState<CatalogSource>('skip')
   const [catalogRows, setCatalogRows] = useState<CatalogRow[]>([])
@@ -212,8 +211,6 @@ export function AddVendorScreen({ onBack }: Props) {
 
   const validateStep2 = (): boolean => {
     const next: Partial<Record<FieldKey, string>> = {}
-    if (orderDays.length === 0)
-      next.order_days = 'Select at least one order day.'
     if (availableDeliveryDays.length === 0)
       next.available_delivery_days =
         'Select at least one available delivery day.'
@@ -224,7 +221,6 @@ export function AddVendorScreen({ onBack }: Props) {
       next.order_cutoff_time = 'Order cutoff time is required.'
     setFieldErrors((prev) => {
       const merged = { ...prev }
-      delete merged.order_days
       delete merged.available_delivery_days
       delete merged.preferred_delivery_days
       delete merged.order_cutoff_time
@@ -361,7 +357,8 @@ export function AddVendorScreen({ onBack }: Props) {
         name: name.trim(),
         category: category.trim(),
         rep_name: repName.trim(),
-        order_days: orderDays,
+        order_days: [],
+        ordering_notes: orderingNotes.trim() || null,
         available_delivery_days: availableDeliveryDays,
         preferred_delivery_days: preferredDeliveryDays,
         order_minimum: orderMinimumNum,
@@ -607,19 +604,6 @@ export function AddVendorScreen({ onBack }: Props) {
         {step === 2 && (
           <div className="mt-6 space-y-4">
             <DayPillGroup
-              label="Order days"
-              required
-              selected={orderDays}
-              onToggle={(day) => {
-                toggleDay(day, orderDays, setOrderDays)
-                clearFieldError('order_days')
-              }}
-            />
-            {fieldErrors.order_days ? (
-              <p className="text-xs text-red-600">{fieldErrors.order_days}</p>
-            ) : null}
-
-            <DayPillGroup
               label="Available delivery days"
               required
               selected={availableDeliveryDays}
@@ -696,6 +680,22 @@ export function AddVendorScreen({ onBack }: Props) {
                   {fieldErrors.order_cutoff_time}
                 </p>
               ) : null}
+            </div>
+            <div>
+              <label
+                htmlFor="ordering-notes"
+                className="text-xs font-semibold uppercase tracking-wide text-stone-600"
+              >
+                Ordering notes (optional)
+              </label>
+              <textarea
+                id="ordering-notes"
+                value={orderingNotes}
+                onChange={(e) => setOrderingNotes(e.target.value)}
+                placeholder="e.g. Order Sunday night for Tuesday delivery"
+                rows={2}
+                className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              />
             </div>
           </div>
         )}
@@ -921,10 +921,6 @@ export function AddVendorScreen({ onBack }: Props) {
                 </h3>
                 <ul className="mt-2 space-y-1 text-stone-700">
                   <li>
-                    <span className="text-stone-500">Order days:</span>{' '}
-                    {orderDays.join(' / ') || '—'}
-                  </li>
-                  <li>
                     <span className="text-stone-500">
                       Available delivery days:
                     </span>{' '}
@@ -943,6 +939,10 @@ export function AddVendorScreen({ onBack }: Props) {
                   <li>
                     <span className="text-stone-500">Cutoff time:</span>{' '}
                     {orderCutoffTime}
+                  </li>
+                  <li>
+                    <span className="text-stone-500">Ordering notes:</span>{' '}
+                    {orderingNotes.trim() ? orderingNotes.trim() : '—'}
                   </li>
                 </ul>
               </div>

@@ -39,7 +39,6 @@ const ORDER_CUTOFF_TIME_OPTIONS = generateTimeOptions()
 type FieldKey =
   | 'name'
   | 'category'
-  | 'order_days'
   | 'available_delivery_days'
   | 'preferred_delivery_days'
   | 'order_cutoff_time'
@@ -54,6 +53,7 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [repName, setRepName] = useState('')
+  /** Loaded from DB only; not edited in UI — preserved on save. */
   const [orderDays, setOrderDays] = useState<string[]>([])
   const [availableDeliveryDays, setAvailableDeliveryDays] = useState<string[]>(
     [],
@@ -63,6 +63,7 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
   >([])
   const [orderMinimum, setOrderMinimum] = useState('0')
   const [orderCutoffTime, setOrderCutoffTime] = useState('5:00 PM')
+  const [orderingNotes, setOrderingNotes] = useState('')
   const [placementMethod, setPlacementMethod] =
     useState<PlacementMethod>('sms')
   const [destination, setDestination] = useState('')
@@ -102,7 +103,7 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
       setName(row.name)
       setCategory(row.category)
       setRepName(row.rep_name ?? '')
-      setOrderDays([...row.order_days])
+      setOrderDays([...(row.order_days ?? [])])
       setAvailableDeliveryDays([...row.available_delivery_days])
       setPreferredDeliveryDays([...row.preferred_delivery_days])
       setOrderMinimum(String(row.order_minimum))
@@ -124,6 +125,7 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
       setSupportsAddons(row.supports_addons)
       setSupportsStandingOrders(row.supports_standing_orders)
       setSupportsHistorySuggestions(row.supports_history_suggestions)
+      setOrderingNotes(row.ordering_notes ?? '')
       setLoadState('ready')
     }
 
@@ -158,8 +160,6 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
     const next: Partial<Record<FieldKey, string>> = {}
     if (!name.trim()) next.name = 'Vendor name is required.'
     if (!category.trim()) next.category = 'Category is required.'
-    if (orderDays.length === 0)
-      next.order_days = 'Select at least one order day.'
     if (availableDeliveryDays.length === 0)
       next.available_delivery_days =
         'Select at least one available delivery day.'
@@ -194,6 +194,7 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
         category: category.trim(),
         rep_name: repName.trim(),
         order_days: orderDays,
+        ordering_notes: orderingNotes.trim() || null,
         available_delivery_days: availableDeliveryDays,
         preferred_delivery_days: preferredDeliveryDays,
         order_minimum: orderMinimumNum,
@@ -347,19 +348,6 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
               Order settings
             </h2>
             <DayPillGroup
-              label="Order days"
-              required
-              selected={orderDays}
-              onToggle={(day) => {
-                toggleDay(day, orderDays, setOrderDays)
-                clearFieldError('order_days')
-              }}
-            />
-            {fieldErrors.order_days ? (
-              <p className="text-xs text-red-600">{fieldErrors.order_days}</p>
-            ) : null}
-
-            <DayPillGroup
               label="Available delivery days"
               required
               selected={availableDeliveryDays}
@@ -436,6 +424,22 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
                   {fieldErrors.order_cutoff_time}
                 </p>
               ) : null}
+            </div>
+            <div>
+              <label
+                htmlFor="ordering-notes"
+                className="text-xs font-semibold uppercase tracking-wide text-stone-600"
+              >
+                Ordering notes (optional)
+              </label>
+              <textarea
+                id="ordering-notes"
+                value={orderingNotes}
+                onChange={(e) => setOrderingNotes(e.target.value)}
+                placeholder="e.g. Order Sunday night for Tuesday delivery"
+                rows={2}
+                className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              />
             </div>
           </section>
 
