@@ -1215,7 +1215,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                           : 'Order ready — place using your preferred method'}
                       </div>
                     ) : null}
-                    <div className="hidden lg:block">
+                    <div className="hidden lg:flex lg:flex-col lg:gap-3">
                       <OrderCartSummaryPanel
                         items={draft.items.filter(
                           (i) =>
@@ -1225,6 +1225,36 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         )}
                         catalog={mergedCatalog}
                       />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleSaveDraft()}
+                          disabled={saving}
+                          className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 disabled:opacity-40 whitespace-nowrap"
+                        >
+                          {saveAck ? 'Saved ✓' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (draft.status === 'draft') handleGenerate()
+                            setFinalizeModalOpen(true)
+                          }}
+                          disabled={
+                            disableOutboundActions ||
+                            !hasIncludedItems ||
+                            (catalog.length === 0 &&
+                              !draft?.items.some((i) =>
+                                i.vendorItemId.startsWith('custom:'),
+                              ))
+                          }
+                          className="flex-1 rounded-lg bg-stone-900 py-2 text-sm font-semibold text-stone-50 disabled:opacity-40"
+                        >
+                          {!hasIncludedItems
+                            ? 'Add items to finalize'
+                            : 'Finalize Order'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1284,7 +1314,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
         </div>
       </div>
       {tab === 'current' ? (
-        <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4">
+        <div className="sticky bottom-0 z-10 bg-[#f7f5f0] border-t border-stone-200 px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 mt-4 lg:hidden">
           <button
             type="button"
             onClick={() => void handleSaveDraft()}
