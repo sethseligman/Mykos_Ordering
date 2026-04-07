@@ -2,9 +2,6 @@ import { useState } from 'react'
 import { AddVendorScreen } from './features/vendors/admin/AddVendorScreen'
 import { EditVendorScreen } from './features/vendors/admin/EditVendorScreen'
 import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
-import { AceEndicoVendorWorkspace } from './features/vendors/ace-endico/AceEndicoVendorWorkspace'
-import { DartagnanVendorWorkspace } from './features/vendors/dartagnan/DartagnanVendorWorkspace'
-import { OptimaVendorWorkspace } from './features/vendors/optima/OptimaVendorWorkspace'
 import { GenericVendorWorkspace } from './features/vendors/shared/components/GenericVendorWorkspace'
 import { OrderPortalScreen } from './features/vendors/shared/components/OrderPortalScreen'
 import { SignInScreen, useAuth } from './features/auth'
@@ -14,9 +11,6 @@ const KNOWN_VIEWS = ['portal', 'admin', 'addVendor', 'editVendor'] as const
 // Portal, admin flows, or any vendor UUID (custom workspaces + generic).
 type ActiveView =
   | (typeof KNOWN_VIEWS)[number]
-  | 'b17c6753-772d-464a-8fc4-b821a34a3dbd'
-  | '4059018a-1099-418b-8dac-812e6d85195f'
-  | 'f60b1a6c-9aa5-4a96-817c-770951188110'
   | (string & {})
 
 function App() {
@@ -45,16 +39,6 @@ function App() {
   const openEditVendor = (vendorId: string) => {
     setEditingVendorId(vendorId)
     setActiveView('editVendor')
-  }
-
-  if (activeView === 'b17c6753-772d-464a-8fc4-b821a34a3dbd') {
-    return <DartagnanVendorWorkspace onBack={backToPortal} />
-  }
-  if (activeView === 'f60b1a6c-9aa5-4a96-817c-770951188110') {
-    return <OptimaVendorWorkspace onBack={backToPortal} />
-  }
-  if (activeView === '4059018a-1099-418b-8dac-812e6d85195f') {
-    return <AceEndicoVendorWorkspace onBack={backToPortal} />
   }
 
   if (
