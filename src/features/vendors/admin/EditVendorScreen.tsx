@@ -36,6 +36,25 @@ function generateTimeOptions(): string[] {
 
 const ORDER_CUTOFF_TIME_OPTIONS = generateTimeOptions()
 
+function formatPhoneNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  const d = digits.startsWith('1') ? digits.slice(1) : digits
+  if (d.length !== 10) return raw
+  return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, '')
+  return (
+    digits.length === 10 ||
+    (digits.length === 11 && digits.startsWith('1'))
+  )
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
 type FieldKey =
   | 'name'
   | 'category'
@@ -171,19 +190,17 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
     if (
       (placementMethod === 'sms' || placementMethod === 'email') &&
       !destination.trim()
-    )
+    ) {
       next.destination = 'Destination is required.'
-    else if (
+    } else if (
       placementMethod === 'sms' &&
-      !/^(\+1)?[\s\-.]?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}$/.test(
-        destination.trim(),
-      )
+      !isValidPhone(destination.trim())
     ) {
       next.destination =
-        'Enter a valid US phone number (e.g. +1 908-482-9316)'
+        'Enter a valid phone number (e.g. 908-482-9316)'
     } else if (
       placementMethod === 'email' &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destination.trim())
+      !isValidEmail(destination.trim())
     ) {
       next.destination = 'Enter a valid email address'
     }
@@ -500,6 +517,11 @@ export function EditVendorScreen({ vendorId, onBack, onSaved }: Props) {
                   onChange={(e) => {
                     setDestination(e.target.value)
                     clearFieldError('destination')
+                  }}
+                  onBlur={() => {
+                    if (placementMethod === 'sms' && destination.trim()) {
+                      setDestination(formatPhoneNumber(destination.trim()))
+                    }
                   }}
                   placeholder="Phone number, email, or URL"
                   className="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
