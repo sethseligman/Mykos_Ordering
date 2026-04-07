@@ -1,12 +1,19 @@
 import { useState } from 'react'
 import { AddVendorScreen } from './features/vendors/admin/AddVendorScreen'
+import { CatalogEditorScreen } from './features/vendors/admin/CatalogEditorScreen'
 import { EditVendorScreen } from './features/vendors/admin/EditVendorScreen'
 import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
 import { GenericVendorWorkspace } from './features/vendors/shared/components/GenericVendorWorkspace'
 import { OrderPortalScreen } from './features/vendors/shared/components/OrderPortalScreen'
 import { SignInScreen, useAuth } from './features/auth'
 
-const KNOWN_VIEWS = ['portal', 'admin', 'addVendor', 'editVendor'] as const
+const KNOWN_VIEWS = [
+  'portal',
+  'admin',
+  'addVendor',
+  'editVendor',
+  'catalog',
+] as const
 
 // Portal, admin flows, or any vendor UUID (custom workspaces + generic).
 type ActiveView =
@@ -17,6 +24,8 @@ function App() {
   const { session, loading } = useAuth()
   const [activeView, setActiveView] = useState<ActiveView>('portal')
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null)
+  const [catalogVendorId, setCatalogVendorId] = useState<string | null>(null)
+  const [catalogVendorName, setCatalogVendorName] = useState<string>('')
   const [portalRefresh, setPortalRefresh] = useState(0)
 
   if (loading) {
@@ -56,6 +65,11 @@ function App() {
         onBack={backToPortal}
         onAddVendor={() => setActiveView('addVendor')}
         onEditVendor={openEditVendor}
+        onManageCatalog={(vendorId, vendorName) => {
+          setCatalogVendorId(vendorId)
+          setCatalogVendorName(vendorName)
+          setActiveView('catalog')
+        }}
       />
     )
   }
@@ -72,6 +86,16 @@ function App() {
         vendorId={editingVendorId}
         onBack={() => setActiveView('admin')}
         onSaved={() => setActiveView('admin')}
+      />
+    )
+  }
+
+  if (activeView === 'catalog' && catalogVendorId) {
+    return (
+      <CatalogEditorScreen
+        vendorId={catalogVendorId}
+        vendorName={catalogVendorName}
+        onBack={() => setActiveView('admin')}
       />
     )
   }

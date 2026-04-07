@@ -9,6 +9,7 @@ type Props = {
   onBack: () => void
   onAddVendor: () => void
   onEditVendor?: (vendorId: string) => void
+  onManageCatalog?: (vendorId: string, vendorName: string) => void
 }
 
 function placementDisplay(
@@ -30,6 +31,7 @@ export function VendorAdminScreen({
   onBack,
   onAddVendor,
   onEditVendor,
+  onManageCatalog,
 }: Props) {
   const [vendors, setVendors] = useState<SupabaseVendorRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -160,6 +162,17 @@ export function VendorAdminScreen({
                         className="text-xs font-semibold text-stone-600 hover:text-stone-900"
                       >
                         Edit
+                      </button>
+                    ) : null}
+                    {onManageCatalog ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onManageCatalog(vendor.id, vendor.name)
+                        }
+                        className="text-xs font-semibold text-stone-600 hover:text-stone-900"
+                      >
+                        Catalog
                       </button>
                     ) : null}
                     <button
