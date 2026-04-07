@@ -6,27 +6,37 @@ import {
   readMostRecentVendorExecutionEvent,
 } from './vendorData/orderExecutionLog'
 
-export function readVendorDraftStatus(vendorId: string): OrderStatus {
+export function readVendorDraftStatus(vendorId: string): OrderStatus | 'no_draft' {
   try {
     const raw = localStorage.getItem(`ordering-app:draft:${vendorId}`)
-    if (!raw) return 'draft'
-    const parsed = JSON.parse(raw) as { status?: unknown }
-    if (
-      parsed.status === 'draft' ||
-      parsed.status === 'ready' ||
-      parsed.status === 'sent'
-    ) {
-      return parsed.status
+    if (!raw) return 'no_draft'
+    const parsed = JSON.parse(raw) as {
+      status?: unknown
+      items?: unknown
     }
-    return 'draft'
+    if (parsed.status === 'sent') return 'sent'
+    if (parsed.status === 'ready') return 'ready'
+    if (Array.isArray(parsed.items)) {
+      const hasItems = parsed.items.some(
+        (i: unknown) =>
+          i &&
+          typeof i === 'object' &&
+          (i as Record<string, unknown>).included === true,
+      )
+      if (hasItems) return 'draft'
+    }
+    return 'no_draft'
   } catch {
-    return 'draft'
+    return 'no_draft'
   }
 }
 
-export function mapOrderStatusToDashboard(status: OrderStatus): VendorDashboardStatus {
+export function mapOrderStatusToDashboard(
+  status: OrderStatus | 'no_draft',
+): VendorDashboardStatus {
   if (status === 'sent') return 'sent'
   if (status === 'ready') return 'draft_ready'
+  if (status === 'draft') return 'draft'
   return 'not_started'
 }
 
@@ -70,16 +80,36 @@ export function buildVendorStatusDetailLine(
   if (dashboardStatus === 'draft_ready') {
     return 'Suggested order ready'
   }
+  if (dashboardStatus === 'draft') {
+    return 'Draft in progress'
+  }
   if (hasSuggestedOrder) {
     return 'Suggested order ready'
   }
   return 'Draft not started'
 }
 
+export function readVendorDraftTimestamp(vendorId: string): string | null {
+  try {
+    const raw = localStorage.getItem(`ordering-app:draft-ts:${vendorId}`)
+    if (!raw) return null
+    const ts = parseInt(raw, 10)
+    if (Number.isNaN(ts)) return null
+    return new Date(ts).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return null
+  }
+}
+
 /** Portal CTA: workspace entry, not “review” of an editable sheet. */
 export function buildPortalVendorCta(
   _vendorId: string,
-  orderStatus: OrderStatus,
+  orderStatus: OrderStatus | 'no_draft',
   placementMethod?: string,
 ): string {
   if (orderStatus === 'sent') return 'Open workspace'
@@ -88,6 +118,7 @@ export function buildPortalVendorCta(
     (placementMethod === 'portal' || placementMethod === 'other')
   )
     return 'Ready to place — open workspace'
+  if (orderStatus === 'ready') return 'Review & send'
   if (orderStatus === 'draft') return 'Continue draft'
-  return 'Open workspace'
+  return 'Start order'
 }

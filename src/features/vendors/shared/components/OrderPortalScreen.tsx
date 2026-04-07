@@ -11,6 +11,7 @@ import {
   buildVendorStatusDetailLine,
   mapOrderStatusToDashboard,
   readVendorDraftStatus,
+  readVendorDraftTimestamp,
   readVendorLastOrderDisplay,
 } from '../portalVendorState'
 import { VendorCard } from './VendorCard'
@@ -56,6 +57,7 @@ export function OrderPortalScreen({
       const draftStatus = readVendorDraftStatus(v.id)
       const dashboardStatus = mapOrderStatusToDashboard(draftStatus)
       const snapshotLast = readVendorLastOrderDisplay(v.id)
+      const savedAt = readVendorDraftTimestamp(v.id)
       const executionLast = readVendorLastExecutionDisplay(v.id)
       const operationalLine = `${orderTriggerLabelFromSettings(v.settings)} for ${deliveryLabelFromSettings(v.settings)}`
       const statusDetailLine =
@@ -77,6 +79,7 @@ export function OrderPortalScreen({
         operationalLine,
         statusDetailLine,
         actionLabel,
+        savedAt,
       }
     })
   }, [refreshKey, vendors])
@@ -119,6 +122,7 @@ export function OrderPortalScreen({
                   operationalLine={row.operationalLine}
                   statusDetailLine={row.statusDetailLine}
                   status={row.dashboardStatus}
+                  savedAt={row.savedAt}
                   actionLabel={row.actionLabel}
                   onNavigate={() => onOpenVendor(row.id)}
                 />

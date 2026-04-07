@@ -3,6 +3,7 @@ import type { VendorDashboardStatus } from '../../../../types/portal'
 const statusPillClass: Record<VendorDashboardStatus, string> = {
   not_started:
     'bg-stone-100 text-stone-700 ring-1 ring-stone-200',
+  draft: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80',
   draft_ready:
     'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80',
   sent: 'bg-stone-200 text-stone-800 ring-1 ring-stone-300/80',
@@ -10,6 +11,7 @@ const statusPillClass: Record<VendorDashboardStatus, string> = {
 
 const statusLabelText: Record<VendorDashboardStatus, string> = {
   not_started: 'Not Started',
+  draft: 'In Progress',
   draft_ready: 'Draft Ready',
   sent: 'Sent',
 }
@@ -22,6 +24,7 @@ type Props = {
   /** e.g. "Last sent Mar 27" / "Suggested order ready" / "Draft not started" */
   statusDetailLine: string
   status: VendorDashboardStatus
+  savedAt?: string | null
   actionLabel: string
   onNavigate: () => void
 }
@@ -32,6 +35,7 @@ export function VendorCard({
   operationalLine,
   statusDetailLine,
   status,
+  savedAt,
   actionLabel,
   onNavigate,
 }: Props) {
@@ -58,6 +62,9 @@ export function VendorCard({
           {operationalLine}
         </p>
         <p className="leading-snug text-stone-600">{statusDetailLine}</p>
+        {savedAt ? (
+          <p className="text-xs text-stone-400">Saved {savedAt}</p>
+        ) : null}
       </div>
 
       <button

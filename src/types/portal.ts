@@ -1,1 +1,1 @@
-export type VendorDashboardStatus = 'not_started' | 'draft_ready' | 'sent'
+export type VendorDashboardStatus = 'not_started' | 'draft' | 'draft_ready' | 'sent'
