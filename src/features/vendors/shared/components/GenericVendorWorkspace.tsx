@@ -316,6 +316,8 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [customNames, setCustomNames] = useState<Map<string, string>>(
     () => new Map(),
   )
+  const [historyHint, setHistoryHint] = useState<string | null>(null)
+  const historyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const draftStorageKey = `ordering-app:draft:${vendorId}`
   const draftTimestampKey = `ordering-app:draft-ts:${vendorId}`
 
@@ -576,11 +578,26 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
       schedulingRules?.invalidDateStrategy === 'block_order'
     )
       return
-    if (suggestionHistory.length === 0) return
     const suggested = generateSuggestedOrderItemsFromHistory(
       suggestionHistory,
       catalog,
     )
+    const anyIncluded = suggested.some((i) => i.included)
+    if (!anyIncluded) {
+      setHistoryHint(
+        suggestionHistory.length === 0
+          ? 'No order history yet — place a few orders first.'
+          : 'Not enough history yet — suggestions appear after a few more orders.',
+      )
+      if (historyHintTimerRef.current)
+        clearTimeout(historyHintTimerRef.current)
+      historyHintTimerRef.current = setTimeout(() => {
+        setHistoryHint(null)
+        historyHintTimerRef.current = null
+      }, 4000)
+      return
+    }
+    setHistoryHint(null)
     bumpDraft((d) => {
       const customs = d.items.filter((i) =>
         i.vendorItemId.startsWith('custom:'),
@@ -654,6 +671,8 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   useEffect(() => {
     return () => {
       if (saveResetRef.current) clearTimeout(saveResetRef.current)
+      if (historyHintTimerRef.current)
+        clearTimeout(historyHintTimerRef.current)
     }
   }, [])
 
@@ -829,14 +848,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
         </button>
 
         <div className="overflow-hidden rounded-lg border border-stone-400/90 bg-[#f7f5f0] shadow-sm">
-          <VendorHeader
-            vendor={vendor}
-            repName={vendorRow.rep_name ?? undefined}
-            preferredDeliveryDays={vendorRow.preferred_delivery_days}
-            orderMinimum={String(vendorRow.order_minimum)}
-            cutoffTime={vendorRow.order_cutoff_time}
-            orderingNotes={vendorRow.ordering_notes ?? undefined}
-          />
+          <VendorHeader vendor={vendor} />
 
           <div
             className="border-b border-stone-200 bg-stone-100/70 px-3 py-3 sm:px-4"
@@ -884,6 +896,8 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                       vendorDeliveryDays={schedulingRules.vendorDeliveryDays}
                       orderMinimum={String(vendorRow.order_minimum)}
                       cutoffTime={vendorRow.order_cutoff_time}
+                      repName={vendorRow.rep_name ?? undefined}
+                      orderingNotes={vendorRow.ordering_notes ?? undefined}
                     />
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
@@ -930,6 +944,11 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                             : undefined
                       }
                     />
+                    {historyHint ? (
+                      <p className="mt-2 text-xs text-stone-500 italic">
+                        {historyHint}
+                      </p>
+                    ) : null}
                     <SortChecklistToolbar
                       mode={checklistSortMode}
                       onChangeMode={setChecklistSortMode}

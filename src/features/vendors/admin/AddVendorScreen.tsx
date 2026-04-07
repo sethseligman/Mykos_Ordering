@@ -245,7 +245,7 @@ export function AddVendorScreen({ onBack }: Props) {
         if (data && data.length > 0) {
           setFieldErrors((prev) => ({
             ...prev,
-            name: 'A vendor with this name already exists.',
+            name: 'A vendor with this name already exists. Archive the existing one first or use a different name.',
           }))
           return
         }
@@ -1009,7 +1009,7 @@ export function AddVendorScreen({ onBack }: Props) {
               disabled={saving || checkingName}
               className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {checkingName ? 'Checking…' : 'Next'}
+              {checkingName ? 'Checking...' : 'Next'}
             </button>
           </div>
         )}

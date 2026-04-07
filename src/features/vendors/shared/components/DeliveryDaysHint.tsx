@@ -69,6 +69,8 @@ type Props = {
   vendorDeliveryDays: Weekday[]
   orderMinimum?: string | null
   cutoffTime?: string | null
+  repName?: string | null
+  orderingNotes?: string | null
 }
 
 export function DeliveryDaysHint({
@@ -76,6 +78,8 @@ export function DeliveryDaysHint({
   vendorDeliveryDays,
   orderMinimum,
   cutoffTime,
+  repName,
+  orderingNotes,
 }: Props) {
   const [open, setOpen] = useState(false)
   const shortLine = formatWeekdaysShortLine(preferredDeliveryDays)
@@ -100,6 +104,7 @@ export function DeliveryDaysHint({
           role="region"
           aria-label="Delivery details"
         >
+          {repName ? <p>• Rep: {repName}</p> : null}
           <p>
             • Delivery days: {formatWeekdaysLongLine(vendorDeliveryDays)}
           </p>
@@ -118,6 +123,7 @@ export function DeliveryDaysHint({
               • Order cutoff: {formatCutoffDisplay(cutoffTime.trim())}
             </p>
           ) : null}
+          {orderingNotes ? <p>• Notes: {orderingNotes}</p> : null}
         </div>
       ) : null}
     </div>
