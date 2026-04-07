@@ -218,13 +218,7 @@ function mergeDraftWithCatalog(
     catalog,
     snapshot,
   )
-  const finalItems =
-    parsed.status === 'draft'
-      ? [
-          ...resetItemsToBlank(baselinedCatalogRows, catalog),
-          ...customItems,
-        ]
-      : [...baselinedCatalogRows, ...customItems]
+  const finalItems = [...baselinedCatalogRows, ...customItems]
   return {
     ...parsed,
     vendorId,
