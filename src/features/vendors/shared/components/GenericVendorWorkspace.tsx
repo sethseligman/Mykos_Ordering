@@ -7,7 +7,13 @@ import {
 } from 'react'
 import { supabase } from '../../../../lib'
 import { buildOrderMessage } from '../../../../lib/buildOrderMessage'
+import {
+  readLastSentOrderSnapshot,
+  writeLastSentOrderSnapshot,
+} from '../../../../lib/lastSentOrderStorage'
+import { applyLastSentBaselineToOrderItems } from '../../../../lib/orderItemBaseline'
 import type { OrderDraft, OrderItem, OrderStatus, VendorItem } from '../../../../types/order'
+import type { LastSentOrderSnapshot } from '../../../../types/lastSentOrder'
 import {
   loadDraftWithTimestampFromSupabase,
   saveDraftToSupabase,
@@ -22,6 +28,8 @@ import {
   sortOrderItemsByCatalogOrder,
   type OrderChecklistSortMode,
 } from '../orderChecklistSort'
+import { generateSuggestedOrderItemsFromHistory } from '../vendorData/suggestOrderFromHistory'
+import type { VendorHistoryOrder } from '../vendorData/types'
 import {
   defaultDeliveryDateForScheduling,
   useChecklistDateRebuildPrompt,
@@ -74,6 +82,19 @@ type FinalizedOrderRow = {
   sent_at: string
   message_text: string
   items: unknown
+}
+
+/**
+ * `finalized_orders.items` is the full OrderDraft JSON (see saveFinalizedOrderToSupabase),
+ * not a bare OrderItem[]. Parse defensively before reading `draft.items`.
+ */
+function orderItemsFromFinalizedPayload(payload: unknown): OrderItem[] {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return []
+  const rec = payload as Record<string, unknown>
+  const arr = rec.items
+  if (!Array.isArray(arr)) return []
+  /* Saved by this app as OrderItem[] inside the draft — validate at runtime only so far. */
+  return arr as OrderItem[]
 }
 
 function toWeekdays(days: string[]): Weekday[] {
@@ -145,12 +166,13 @@ function mergeDraftWithCatalog(
   repFirstName: string,
 ): OrderDraft {
   const template = buildEmptyOrderItems(catalog)
+  const snapshot = readLastSentOrderSnapshot(vendorId)
   if (!parsed || parsed.vendorId !== vendorId) {
     return {
       vendorId,
       deliveryDate,
       repFirstName,
-      items: template,
+      items: applyLastSentBaselineToOrderItems(template, catalog, snapshot),
       internalNotes: '',
       vendorNotes: '',
       status: 'draft',
@@ -171,12 +193,18 @@ function mergeDraftWithCatalog(
   const customItems = parsed.items.filter(
     (i) => i.vendorItemId.startsWith('custom:') && !catalogIds.has(i.vendorItemId),
   )
+  /* applyLastSentBaselineToOrderItems returns one row per catalog item only — append custom lines after. */
+  const baselinedCatalogRows = applyLastSentBaselineToOrderItems(
+    items,
+    catalog,
+    snapshot,
+  )
   return {
     ...parsed,
     vendorId,
     deliveryDate: parsed.deliveryDate || deliveryDate,
     repFirstName: parsed.repFirstName?.trim() || repFirstName,
-    items: [...items, ...customItems],
+    items: [...baselinedCatalogRows, ...customItems],
   }
 }
 
@@ -252,6 +280,9 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     useState<OrderChecklistSortMode>('alphabetical')
   const [historyRows, setHistoryRows] = useState<FinalizedOrderRow[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [suggestionHistory, setSuggestionHistory] = useState<VendorHistoryOrder[]>(
+    [],
+  )
   const [showAddItem, setShowAddItem] = useState(false)
   const [newItemName, setNewItemName] = useState('')
   const [newItemQty, setNewItemQty] = useState('')
@@ -451,8 +482,12 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
 
   const checklistOrderedIds = useMemo(
     () =>
-      orderedCatalogIdsForChecklist(catalog, [], checklistSortMode),
-    [catalog, checklistSortMode],
+      orderedCatalogIdsForChecklist(
+        catalog,
+        suggestionHistory,
+        checklistSortMode,
+      ),
+    [catalog, suggestionHistory, checklistSortMode],
   )
 
   const checklistDisplayItems = useMemo(() => {
@@ -509,6 +544,28 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     setCustomNames(new Map())
     checklistRebuild.markChecklistRebuiltForCurrentDate()
   }
+
+  const handleBuildFromHistory = useCallback(() => {
+    if (!scheduleValidation.applyHistorySuggestions) return
+    if (suggestionHistory.length === 0) return
+    const suggested = generateSuggestedOrderItemsFromHistory(
+      suggestionHistory,
+      catalog,
+    )
+    bumpDraft((d) => {
+      const customs = d.items.filter((i) =>
+        i.vendorItemId.startsWith('custom:'),
+      )
+      return { ...d, items: [...suggested, ...customs] }
+    })
+    checklistRebuild.markChecklistRebuiltForCurrentDate()
+  }, [
+    suggestionHistory,
+    catalog,
+    scheduleValidation.applyHistorySuggestions,
+    bumpDraft,
+    checklistRebuild,
+  ])
 
   const handleAddCustomItem = () => {
     const name = newItemName.trim()
@@ -593,6 +650,41 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     if (tab === 'history' && loadState === 'ready') void loadHistory()
   }, [tab, loadState, loadHistory])
 
+  const loadSuggestionHistory = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('finalized_orders')
+      .select('*')
+      .eq('vendor_id', vendorId)
+      .eq('restaurant_id', RESTAURANT_ID)
+      .order('sent_at', { ascending: false })
+      .limit(10)
+
+    if (error || !data) return
+
+    const history: VendorHistoryOrder[] = (data as FinalizedOrderRow[]).map(
+      (row) => {
+        const rawItems = orderItemsFromFinalizedPayload(row.items)
+        return {
+          date: row.delivery_date,
+          deliveryDate: row.delivery_date,
+          items: rawItems
+            .filter((i) => i.included)
+            .map((i) => ({
+              itemId: i.vendorItemId,
+              quantity: i.quantity,
+              unitType: i.unit,
+              packSizeSnapshot: undefined,
+            })),
+        }
+      },
+    )
+    setSuggestionHistory(history)
+  }, [vendorId])
+
+  useEffect(() => {
+    if (loadState === 'ready') void loadSuggestionHistory()
+  }, [loadState, loadSuggestionHistory])
+
   const handleMarkSent = () => {
     if (!draft || draft.status !== 'ready' || disableOutboundActions) return
     if (!vendorRow) return
@@ -606,8 +698,27 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
       channel,
       sentAt: now,
     })
-    setDraft(sentDraft)
+    const snapshot: LastSentOrderSnapshot = {
+      vendorId,
+      sentAt: now,
+      lines: draft.items.map((row) => ({
+        vendorItemId: row.vendorItemId,
+        included: row.included,
+        quantity: row.quantity,
+        unit: row.unit,
+      })),
+    }
+    writeLastSentOrderSnapshot(snapshot)
+    setDraft({
+      ...sentDraft,
+      items: sentDraft.items.map((row) => ({
+        ...row,
+        lastQuantity: row.included ? row.quantity : '',
+        lastUnit: row.unit,
+      })),
+    })
     void loadHistory()
+    void loadSuggestionHistory()
   }
 
   const tabBtn = (id: TabId, label: string) => (
@@ -755,9 +866,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
 
                 <ChecklistDateRebuildPrompt
                   pendingRebuildDate={checklistRebuild.pendingRebuildDate}
-                  onRebuild={() => {
-                    checklistRebuild.markChecklistRebuiltForCurrentDate()
-                  }}
+                  onRebuild={handleBuildFromHistory}
                   onKeepCurrent={() =>
                     checklistRebuild.keepCurrentDraftForCurrentDate()
                   }
@@ -766,11 +875,19 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                   <div className="min-w-0 flex-1 pb-0">
                     <OrderChecklistQuickActions
-                      onBuildFromHistory={() => {}}
+                      onBuildFromHistory={handleBuildFromHistory}
                       onClearAll={clearAllItems}
-                      buildFromHistoryEnabled={false}
-                      buildFromHistoryTitle="Not available for generic vendors"
-                      hint="Build from history is not available for this vendor yet."
+                      buildFromHistoryEnabled={
+                        scheduleValidation.applyHistorySuggestions &&
+                        suggestionHistory.length > 0
+                      }
+                      buildFromHistoryTitle={
+                        suggestionHistory.length === 0
+                          ? 'No order history yet.'
+                          : !scheduleValidation.applyHistorySuggestions
+                            ? 'Pick a valid delivery day before building from history.'
+                            : undefined
+                      }
                     />
                     <SortChecklistToolbar
                       mode={checklistSortMode}
@@ -890,8 +1007,19 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                                       quantityLabel={label}
                                     />
                                   </td>
-                                  <td className="px-2 py-2 align-middle text-xs text-stone-600">
-                                    {row.unit}
+                                  <td className="px-2 py-2 align-middle">
+                                    <input
+                                      type="text"
+                                      disabled={lockChecklist}
+                                      className="w-full min-w-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-xs text-stone-800 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400 disabled:opacity-60 sm:px-1.5 sm:text-sm"
+                                      value={row.unit}
+                                      onChange={(e) =>
+                                        patchItem(row.vendorItemId, {
+                                          unit: e.target.value,
+                                        })
+                                      }
+                                      aria-label={`Unit for ${label}`}
+                                    />
                                   </td>
                                 </tr>
                               )
@@ -960,6 +1088,58 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         + Add item
                       </button>
                     )}
+                    <section
+                      className="space-y-5"
+                      aria-labelledby="notes-heading"
+                    >
+                      <h2
+                        id="notes-heading"
+                        className="text-sm font-semibold uppercase tracking-wide text-stone-600"
+                      >
+                        Notes
+                      </h2>
+                      <div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
+                          Internal notes
+                        </h3>
+                        <p className="mt-1 text-xs text-stone-500">
+                          Stays on this sheet — not included in the text to the
+                          vendor.
+                        </p>
+                        <textarea
+                          rows={3}
+                          className="mt-2 w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-stone-900 shadow-sm focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400"
+                          value={draft.internalNotes}
+                          onChange={(e) =>
+                            bumpDraft((d) => ({
+                              ...d,
+                              internalNotes: e.target.value,
+                            }))
+                          }
+                          placeholder="Operational reminders…"
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
+                          Vendor notes
+                        </h3>
+                        <p className="mt-1 text-xs text-stone-500">
+                          Appended to the generated message when non-empty.
+                        </p>
+                        <textarea
+                          rows={3}
+                          className="mt-2 w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-stone-900 shadow-sm focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400"
+                          value={draft.vendorNotes}
+                          onChange={(e) =>
+                            bumpDraft((d) => ({
+                              ...d,
+                              vendorNotes: e.target.value,
+                            }))
+                          }
+                          placeholder="Anything to include in the text to the vendor…"
+                        />
+                      </div>
+                    </section>
                   </div>
 
                   <div className="w-full shrink-0 space-y-3 lg:w-72">
