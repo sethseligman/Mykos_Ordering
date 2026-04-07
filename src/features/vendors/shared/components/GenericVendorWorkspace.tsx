@@ -1050,13 +1050,17 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                                   <td className="px-2 py-2 align-middle">
                                     <QuantityInputWithArrows
                                       value={row.quantity}
-                                      onChangeValue={(q) =>
+                                      onChangeValue={(q) => {
+                                        const trimmed = q.trim()
+                                        const numVal = parseFloat(trimmed)
+                                        const isEmpty =
+                                          trimmed === '' ||
+                                          (Number.isFinite(numVal) && numVal <= 0)
                                         patchItem(row.vendorItemId, {
                                           quantity: q,
-                                          included:
-                                            q.trim() !== '' ? true : row.included,
+                                          included: isEmpty ? false : true,
                                         })
-                                      }
+                                      }}
                                       disabled={lockChecklist}
                                       quantityLabel={label}
                                     />
@@ -1209,7 +1213,12 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                     ) : null}
                     <div className="hidden lg:block">
                       <OrderCartSummaryPanel
-                        items={draft.items}
+                        items={draft.items.filter(
+                          (i) =>
+                            i.included &&
+                            i.quantity.trim() !== '' &&
+                            parseFloat(i.quantity) > 0,
+                        )}
                         catalog={mergedCatalog}
                       />
                     </div>
