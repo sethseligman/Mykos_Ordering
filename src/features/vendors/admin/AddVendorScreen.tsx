@@ -199,6 +199,20 @@ export function AddVendorScreen({ onBack }: Props) {
       !destination.trim()
     )
       next.destination = 'Destination is required.'
+    else if (
+      placementMethod === 'sms' &&
+      !/^(\+1)?[\s\-.]?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}$/.test(
+        destination.trim(),
+      )
+    ) {
+      next.destination =
+        'Enter a valid US phone number (e.g. +1 908-482-9316)'
+    } else if (
+      placementMethod === 'email' &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destination.trim())
+    ) {
+      next.destination = 'Enter a valid email address'
+    }
     setFieldErrors((prev) => {
       const merged = { ...prev }
       delete merged.name
