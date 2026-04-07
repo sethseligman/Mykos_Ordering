@@ -168,6 +168,7 @@ export function AddVendorScreen({ onBack }: Props) {
   >({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [checkingName, setCheckingName] = useState(false)
 
   const toggleDay = (
     day: string,
@@ -232,10 +233,35 @@ export function AddVendorScreen({ onBack }: Props) {
     return Object.keys(next).length === 0
   }
 
-  const goNext = () => {
+  const goNext = async () => {
     if (step === 1) {
       if (!validateStep1()) return
-      setStep(2)
+      setCheckingName(true)
+      try {
+        const { data, error } = await supabase
+          .from('vendors')
+          .select('id')
+          .eq('restaurant_id', RESTAURANT_ID)
+          .ilike('name', name.trim())
+          .is('archived_at', null)
+          .limit(1)
+        if (error) throw error
+        if (data && data.length > 0) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            name: 'A vendor with this name already exists.',
+          }))
+          return
+        }
+        setStep(2)
+      } catch {
+        setFieldErrors((prev) => ({
+          ...prev,
+          name: 'Could not verify vendor name. Please try again.',
+        }))
+      } finally {
+        setCheckingName(false)
+      }
       return
     }
     if (step === 2) {
@@ -979,10 +1005,11 @@ export function AddVendorScreen({ onBack }: Props) {
             )}
             <button
               type="button"
-              onClick={goNext}
-              className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 hover:bg-stone-800"
+              onClick={() => void goNext()}
+              disabled={saving || checkingName}
+              className="w-full rounded-md bg-stone-900 py-2.5 text-sm font-semibold text-stone-50 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Next
+              {checkingName ? 'Checking…' : 'Next'}
             </button>
           </div>
         )}
