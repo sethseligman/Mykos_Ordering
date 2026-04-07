@@ -980,10 +980,14 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                               const isCustom = row.vendorItemId.startsWith(
                                 'custom:',
                               )
-                              const label = isCustom
+                              const baseName = isCustom
                                 ? (customNames.get(row.vendorItemId) ??
                                   'Custom item')
                                 : (cat?.name ?? row.vendorItemId)
+                              const label =
+                                !isCustom && cat?.packSize
+                                  ? `${baseName} (${cat.packSize})`
+                                  : baseName
                               return (
                                 <tr
                                   key={row.vendorItemId}
