@@ -730,7 +730,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         schedulingRules.preferredDeliveryDays
                       }
                       vendorDeliveryDays={schedulingRules.vendorDeliveryDays}
-                      orderMinimum={vendorRow.order_minimum}
+                      orderMinimum={String(vendorRow.order_minimum)}
                       cutoffTime={vendorRow.order_cutoff_time}
                     />
                   </div>

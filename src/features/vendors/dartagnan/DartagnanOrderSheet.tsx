@@ -324,7 +324,7 @@ type OrderMetadataBarProps = {
   deliveryDate: string
   preferredDeliveryDays: Weekday[]
   vendorDeliveryDays: Weekday[]
-  orderMinimum?: number | null
+  orderMinimum?: string | null
   cutoffTime?: string | null
   status: OrderStatus
   statusUi: { label: string; className: string }
@@ -664,8 +664,8 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     ? 'font-sans text-stone-800'
     : 'overflow-clip rounded-lg border border-stone-400/90 bg-[#f7f5f0] font-sans text-stone-800 shadow-[0_2px_0_rgba(28,25,23,0.06),0_12px_32px_-8px_rgba(28,25,23,0.12)]'
 
-  const dartPlacement = resolveVendorPlatformConfig(dartagnanPlatformConfig)
-    .settings.orderPlacement
+  const resolvedConfig = resolveVendorPlatformConfig(dartagnanPlatformConfig)
+  const dartPlacement = resolvedConfig.settings.orderPlacement
   const includedItemCount = draft.items.filter((i) => i.included).length
 
   return (
@@ -676,6 +676,8 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
               dartagnanSchedulingRules.preferredDeliveryDays
             }
             vendorDeliveryDays={dartagnanSchedulingRules.vendorDeliveryDays}
+            orderMinimum={resolvedConfig.settings.orderCadence.orderMinimum}
+            cutoffTime={resolvedConfig.settings.orderCadence.orderCutOffTime}
             status={status}
             statusUi={statusUi}
             sentAt={sentAt}

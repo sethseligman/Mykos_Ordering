@@ -334,6 +334,8 @@ type OptimaMetadataBarProps = {
   deliveryDate: string
   preferredDeliveryDays: Weekday[]
   vendorDeliveryDays: Weekday[]
+  orderMinimum?: string | null
+  cutoffTime?: string | null
   status: OrderStatus
   statusUi: { label: string; className: string }
   sentAt: number | null
@@ -344,6 +346,8 @@ function OptimaMetadataBar({
   deliveryDate,
   preferredDeliveryDays,
   vendorDeliveryDays,
+  orderMinimum,
+  cutoffTime,
   status,
   statusUi,
   sentAt,
@@ -372,6 +376,8 @@ function OptimaMetadataBar({
           <DeliveryDaysHint
             preferredDeliveryDays={preferredDeliveryDays}
             vendorDeliveryDays={vendorDeliveryDays}
+            orderMinimum={orderMinimum}
+            cutoffTime={cutoffTime}
           />
         </div>
       </div>
@@ -666,8 +672,8 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
     ? 'font-sans text-stone-800'
     : 'overflow-clip rounded-lg border border-stone-400/90 bg-[#f7f5f0] font-sans text-stone-800 shadow-[0_2px_0_rgba(28,25,23,0.06),0_12px_32px_-8px_rgba(28,25,23,0.12)]'
 
-  const optimaPlacement = resolveVendorPlatformConfig(optimaPlatformConfig)
-    .settings.orderPlacement
+  const resolvedConfig = resolveVendorPlatformConfig(optimaPlatformConfig)
+  const optimaPlacement = resolvedConfig.settings.orderPlacement
   const includedItemCount = draft.items.filter((i) => i.included).length
 
   return (
@@ -676,6 +682,8 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
             deliveryDate={draft.deliveryDate}
             preferredDeliveryDays={optimaSchedulingRules.preferredDeliveryDays}
             vendorDeliveryDays={optimaSchedulingRules.vendorDeliveryDays}
+            orderMinimum={resolvedConfig.settings.orderCadence.orderMinimum}
+            cutoffTime={resolvedConfig.settings.orderCadence.orderCutOffTime}
             status={status}
             statusUi={statusUi}
             sentAt={sentAt}

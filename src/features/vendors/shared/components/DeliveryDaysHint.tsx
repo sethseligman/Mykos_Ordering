@@ -67,7 +67,7 @@ function formatCurrency(n: number): string {
 type Props = {
   preferredDeliveryDays: Weekday[]
   vendorDeliveryDays: Weekday[]
-  orderMinimum?: number | null
+  orderMinimum?: string | null
   cutoffTime?: string | null
 }
 
@@ -107,8 +107,11 @@ export function DeliveryDaysHint({
             • Your usual days:{' '}
             {formatWeekdaysLongLine(preferredDeliveryDays)}
           </p>
-          {orderMinimum != null && orderMinimum > 0 ? (
-            <p>• Order minimum: {formatCurrency(orderMinimum)}</p>
+          {orderMinimum != null && orderMinimum.trim() !== '' ? (
+            <p>
+              • Order minimum:{' '}
+              {formatOrderMinimumDisplay(orderMinimum.trim())}
+            </p>
           ) : null}
           {cutoffTime != null && cutoffTime.trim() !== '' ? (
             <p>
@@ -119,6 +122,11 @@ export function DeliveryDaysHint({
       ) : null}
     </div>
   )
+}
+
+function formatOrderMinimumDisplay(s: string): string {
+  const n = Number(s.replace(/,/g, ''))
+  return Number.isFinite(n) ? formatCurrency(n) : s
 }
 
 function formatCutoffDisplay(raw: string): string {
