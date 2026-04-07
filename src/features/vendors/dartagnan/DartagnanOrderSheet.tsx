@@ -23,6 +23,7 @@ import {
 } from './dartagnanVendorConfig'
 import { buildOrderMessage } from '../../../lib/buildOrderMessage'
 import { ChecklistDateRebuildPrompt } from '../shared/components/ChecklistDateRebuildPrompt'
+import { DeliveryDaysHint } from '../shared/components/DeliveryDaysHint'
 import { OrderChecklistQuickActions } from '../shared/components/OrderChecklistQuickActions'
 import { FinalizeOrderModal } from '../shared/components/FinalizeOrderModal'
 import { OrderCartSummaryPanel } from '../shared/components/OrderCartSummaryPanel'
@@ -39,6 +40,7 @@ import {
   useChecklistDateRebuildPrompt,
   validateVendorDeliveryDate,
 } from '../shared/vendorScheduling'
+import type { Weekday } from '../shared/vendorScheduling/types'
 import {
   loadDraftWithTimestampFromSupabase,
   saveDraftToSupabase,
@@ -62,7 +64,6 @@ import {
 import { applyLastSentBaselineToOrderItems } from '../../../lib/orderItemBaseline'
 import type { LastSentOrderSnapshot } from '../../../types/lastSentOrder'
 import type {
-  OrderChannel,
   OrderDraft,
   OrderItem,
   OrderStatus,
@@ -321,29 +322,27 @@ function OrderChecklist({ items, catalog, onChange, disabled }: ChecklistProps) 
 
 type OrderMetadataBarProps = {
   deliveryDate: string
-  repFirstName: string
-  channel: OrderChannel
+  preferredDeliveryDays: Weekday[]
+  vendorDeliveryDays: Weekday[]
+  orderMinimum?: number | null
+  cutoffTime?: string | null
   status: OrderStatus
   statusUi: { label: string; className: string }
-  lastGeneratedAt: number | null
   sentAt: number | null
   onDeliveryDateChange: (value: string) => void
-  onRepFirstNameChange: (value: string) => void
 }
 
 function OrderMetadataBar({
   deliveryDate,
-  repFirstName,
-  channel,
+  preferredDeliveryDays,
+  vendorDeliveryDays,
+  orderMinimum,
+  cutoffTime,
   status,
   statusUi,
-  lastGeneratedAt,
   sentAt,
   onDeliveryDateChange,
-  onRepFirstNameChange,
 }: OrderMetadataBarProps) {
-  void channel
-  void lastGeneratedAt
   return (
     <div
       className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-stone-200 bg-[#f2efe8] px-4 py-2.5"
@@ -364,26 +363,12 @@ function OrderMetadataBar({
             onChange={(e) => onDeliveryDateChange(e.target.value)}
             className="rounded border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400"
           />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <label
-            htmlFor="order-rep"
-            className="text-[10px] font-semibold uppercase tracking-wide text-stone-500"
-          >
-            Rep
-          </label>
-          <select
-            id="order-rep"
-            value={repFirstName}
-            onChange={(e) => onRepFirstNameChange(e.target.value)}
-            className="rounded border border-stone-300 bg-white px-2 py-1 text-sm font-medium text-stone-900 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400"
-          >
-            {dartagnanRepFirstNameOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <DeliveryDaysHint
+            preferredDeliveryDays={preferredDeliveryDays}
+            vendorDeliveryDays={vendorDeliveryDays}
+            orderMinimum={orderMinimum}
+            cutoffTime={cutoffTime}
+          />
         </div>
       </div>
       <div className="flex items-center gap-x-3">
@@ -498,10 +483,6 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
 
   const setDeliveryDate = (deliveryDate: string) => {
     bumpDraftOnEdit((d) => ({ ...d, deliveryDate }))
-  }
-
-  const setRepFirstName = (repFirstName: string) => {
-    bumpDraftOnEdit((d) => ({ ...d, repFirstName }))
   }
 
   const loadFromHistory = () => {
@@ -691,14 +672,14 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
     <div className={shellClass}>
           <OrderMetadataBar
             deliveryDate={draft.deliveryDate}
-            repFirstName={draft.repFirstName}
-            channel={dartagnanVendor.channel}
+            preferredDeliveryDays={
+              dartagnanSchedulingRules.preferredDeliveryDays
+            }
+            vendorDeliveryDays={dartagnanSchedulingRules.vendorDeliveryDays}
             status={status}
             statusUi={statusUi}
-            lastGeneratedAt={lastGeneratedAt}
             sentAt={sentAt}
             onDeliveryDateChange={setDeliveryDate}
-            onRepFirstNameChange={setRepFirstName}
           />
 
           <VendorDeliveryDateBanner
@@ -714,28 +695,22 @@ export function DartagnanOrderSheet({ embedded, onSent }: Props) {
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
             <div className="space-y-6 pb-0">
-              <section aria-labelledby="checklist-heading">
-                <h2
-                  id="checklist-heading"
-                  className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-600"
-                >
-                  Order checklist
-                </h2>
+              <section aria-label="Order checklist">
                 <OrderChecklistQuickActions
-                  onApplyFromHistory={loadFromHistory}
+                  onBuildFromHistory={loadFromHistory}
                   onClearAll={clearAllItems}
                   hint={
                     scheduleValidation.applyStandingOrders
                       ? dartagnanStandingOrderHint
                       : undefined
                   }
-                  applyFromHistoryEnabled={
+                  buildFromHistoryEnabled={
                     scheduleValidation.applyHistorySuggestions
                   }
-                  applyFromHistoryTitle={
+                  buildFromHistoryTitle={
                     scheduleValidation.applyHistorySuggestions
                       ? undefined
-                      : 'Pick a valid delivery day before applying history.'
+                      : 'Pick a valid delivery day before building from history.'
                   }
                 />
                 <ChecklistDateRebuildPrompt

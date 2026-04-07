@@ -1,11 +1,11 @@
 type Props = {
-  onApplyFromHistory: () => void
+  onBuildFromHistory: () => void
   onClearAll: () => void
   /** Optional note under the buttons (e.g. standing orders). */
   hint?: string
-  /** When false, “Apply from history” is disabled (e.g. invalid delivery day). */
-  applyFromHistoryEnabled?: boolean
-  applyFromHistoryTitle?: string
+  /** When false, “Build from history” is disabled (e.g. invalid delivery day). */
+  buildFromHistoryEnabled?: boolean
+  buildFromHistoryTitle?: string
 }
 
 const btnDefault =
@@ -14,11 +14,11 @@ const btnMuted =
   'rounded border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-200 active:bg-stone-300/80'
 
 export function OrderChecklistQuickActions({
-  onApplyFromHistory,
+  onBuildFromHistory,
   onClearAll,
   hint,
-  applyFromHistoryEnabled = true,
-  applyFromHistoryTitle,
+  buildFromHistoryEnabled = true,
+  buildFromHistoryTitle,
 }: Props) {
   return (
     <>
@@ -29,12 +29,12 @@ export function OrderChecklistQuickActions({
       >
         <button
           type="button"
-          onClick={onApplyFromHistory}
-          disabled={!applyFromHistoryEnabled}
-          title={applyFromHistoryTitle}
+          onClick={onBuildFromHistory}
+          disabled={!buildFromHistoryEnabled}
+          title={buildFromHistoryTitle}
           className={`${btnDefault} disabled:cursor-not-allowed disabled:opacity-45`}
         >
-          Apply from history
+          Build from history
         </button>
         <button type="button" onClick={onClearAll} className={btnMuted}>
           Clear all

@@ -29,6 +29,7 @@ import {
 } from '../vendorScheduling'
 import type { VendorSchedulingRules, Weekday } from '../vendorScheduling/types'
 import { ChecklistDateRebuildPrompt } from './ChecklistDateRebuildPrompt'
+import { DeliveryDaysHint } from './DeliveryDaysHint'
 import { FinalizeOrderModal } from './FinalizeOrderModal'
 import { OrderCartSummaryPanel } from './OrderCartSummaryPanel'
 import { OrderChecklistQuickActions } from './OrderChecklistQuickActions'
@@ -708,21 +709,31 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                 />
 
                 <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                  <label className="text-xs font-semibold text-stone-600">
-                    Delivery date
-                    <input
-                      type="date"
-                      value={draft.deliveryDate}
-                      disabled={lockChecklist}
-                      onChange={(e) =>
-                        bumpDraft((d) => ({
-                          ...d,
-                          deliveryDate: e.target.value,
-                        }))
+                  <div className="min-w-0">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Delivery date
+                      <input
+                        type="date"
+                        value={draft.deliveryDate}
+                        disabled={lockChecklist}
+                        onChange={(e) =>
+                          bumpDraft((d) => ({
+                            ...d,
+                            deliveryDate: e.target.value,
+                          }))
+                        }
+                        className="mt-1 w-full max-w-xs rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 disabled:opacity-60"
+                      />
+                    </label>
+                    <DeliveryDaysHint
+                      preferredDeliveryDays={
+                        schedulingRules.preferredDeliveryDays
                       }
-                      className="mt-1 w-full max-w-xs rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 disabled:opacity-60"
+                      vendorDeliveryDays={schedulingRules.vendorDeliveryDays}
+                      orderMinimum={vendorRow.order_minimum}
+                      cutoffTime={vendorRow.order_cutoff_time}
                     />
-                  </label>
+                  </div>
                   <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusUi.className}`}
@@ -754,15 +765,12 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                   <div className="min-w-0 flex-1 pb-0">
-                    <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-600">
-                      Order checklist
-                    </h2>
                     <OrderChecklistQuickActions
-                      onApplyFromHistory={() => {}}
+                      onBuildFromHistory={() => {}}
                       onClearAll={clearAllItems}
-                      applyFromHistoryEnabled={false}
-                      applyFromHistoryTitle="Not available for generic vendors"
-                      hint="Apply from history is not available for this vendor yet."
+                      buildFromHistoryEnabled={false}
+                      buildFromHistoryTitle="Not available for generic vendors"
+                      hint="Build from history is not available for this vendor yet."
                     />
                     <SortChecklistToolbar
                       mode={checklistSortMode}

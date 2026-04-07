@@ -18,6 +18,7 @@ import { generateOptimaSuggestedOrder } from './optimaSuggestion'
 import { optimaVendor } from './optimaVendor'
 import { optimaPlatformConfig } from './optimaVendorConfig'
 import { ChecklistDateRebuildPrompt } from '../shared/components/ChecklistDateRebuildPrompt'
+import { DeliveryDaysHint } from '../shared/components/DeliveryDaysHint'
 import { OrderChecklistQuickActions } from '../shared/components/OrderChecklistQuickActions'
 import { FinalizeOrderModal } from '../shared/components/FinalizeOrderModal'
 import { OrderCartSummaryPanel } from '../shared/components/OrderCartSummaryPanel'
@@ -33,6 +34,7 @@ import {
   useChecklistDateRebuildPrompt,
   validateVendorDeliveryDate,
 } from '../shared/vendorScheduling'
+import type { Weekday } from '../shared/vendorScheduling/types'
 import {
   loadDraftWithTimestampFromSupabase,
   saveDraftToSupabase,
@@ -55,7 +57,6 @@ import { applyLastSentBaselineToOrderItems } from '../../../lib/orderItemBaselin
 import type { LastSentOrderSnapshot } from '../../../types/lastSentOrder'
 import type { VendorHistoryOrder } from '../shared/vendorData/types'
 import type {
-  OrderChannel,
   OrderDraft,
   OrderItem,
   OrderStatus,
@@ -98,14 +99,6 @@ const sentAtStorageKey = `ordering-app:lastSentAt:${optimaVendor.id}`
 
 // Supabase vendor ID for Optima
 const SUPABASE_VENDOR_ID = 'f60b1a6c-9aa5-4a96-817c-770951188110'
-
-const CHANNEL_DISPLAY: Record<OrderChannel, string> = {
-  text: 'Text',
-  email: 'Email',
-  phone: 'Phone',
-  portal: 'Portal',
-  other: 'Other',
-}
 
 function finalizeDraftWithBaseline(draft: OrderDraft): OrderDraft {
   const snap = readLastSentOrderSnapshot(optimaVendor.id)
@@ -339,20 +332,20 @@ function OrderChecklist({ items, catalog, onChange, disabled }: ChecklistProps) 
 
 type OptimaMetadataBarProps = {
   deliveryDate: string
-  channel: OrderChannel
+  preferredDeliveryDays: Weekday[]
+  vendorDeliveryDays: Weekday[]
   status: OrderStatus
   statusUi: { label: string; className: string }
-  lastGeneratedAt: number | null
   sentAt: number | null
   onDeliveryDateChange: (value: string) => void
 }
 
 function OptimaMetadataBar({
   deliveryDate,
-  channel,
+  preferredDeliveryDays,
+  vendorDeliveryDays,
   status,
   statusUi,
-  lastGeneratedAt,
   sentAt,
   onDeliveryDateChange,
 }: OptimaMetadataBarProps) {
@@ -376,22 +369,10 @@ function OptimaMetadataBar({
             onChange={(e) => onDeliveryDateChange(e.target.value)}
             className="rounded border border-stone-300 bg-white px-2 py-1 font-mono text-sm text-stone-900 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-400"
           />
-        </div>
-        <div className="flex flex-col gap-0.5 pb-px">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-            Greeting
-          </span>
-          <span className="text-sm font-medium text-stone-800">
-            Hi {optimaVendor.primaryRepFirstName}
-          </span>
-        </div>
-        <div className="flex flex-col gap-0.5 pb-px">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-            Channel
-          </span>
-          <span className="text-sm font-medium text-stone-800">
-            {CHANNEL_DISPLAY[channel]}
-          </span>
+          <DeliveryDaysHint
+            preferredDeliveryDays={preferredDeliveryDays}
+            vendorDeliveryDays={vendorDeliveryDays}
+          />
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
@@ -400,19 +381,9 @@ function OptimaMetadataBar({
         >
           {statusUi.label}
         </span>
-        {lastGeneratedAt != null &&
-          (status === 'ready' || status === 'sent') && (
-            <span className="text-xs text-stone-500">
-              Generated{' '}
-              {new Date(lastGeneratedAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          )}
         {status === 'sent' && sentAt != null && (
           <span className="text-xs text-stone-500">
-            Sent at{' '}
+            Sent{' '}
             {new Date(sentAt).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -703,10 +674,10 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
     <div className={shellClass}>
           <OptimaMetadataBar
             deliveryDate={draft.deliveryDate}
-            channel={optimaVendor.channel}
+            preferredDeliveryDays={optimaSchedulingRules.preferredDeliveryDays}
+            vendorDeliveryDays={optimaSchedulingRules.vendorDeliveryDays}
             status={status}
             statusUi={statusUi}
-            lastGeneratedAt={lastGeneratedAt}
             sentAt={sentAt}
             onDeliveryDateChange={setDeliveryDate}
           />
@@ -724,23 +695,17 @@ export function OptimaOrderSheet({ embedded, onSent }: Props) {
 
           <div className="grid gap-8 p-4 sm:p-6 lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start">
             <div className="space-y-6 pb-0">
-              <section aria-labelledby="checklist-heading">
-                <h2
-                  id="checklist-heading"
-                  className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-600"
-                >
-                  Order checklist
-                </h2>
+              <section aria-label="Order checklist">
                 <OrderChecklistQuickActions
-                  onApplyFromHistory={loadSuggestedOrder}
+                  onBuildFromHistory={loadSuggestedOrder}
                   onClearAll={clearAllItems}
-                  applyFromHistoryEnabled={
+                  buildFromHistoryEnabled={
                     scheduleValidation.applyHistorySuggestions
                   }
-                  applyFromHistoryTitle={
+                  buildFromHistoryTitle={
                     scheduleValidation.applyHistorySuggestions
                       ? undefined
-                      : 'Pick a valid delivery day before applying history.'
+                      : 'Pick a valid delivery day before building from history.'
                   }
                 />
                 <ChecklistDateRebuildPrompt
