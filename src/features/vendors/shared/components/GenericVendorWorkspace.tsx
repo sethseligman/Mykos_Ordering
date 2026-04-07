@@ -36,11 +36,9 @@ import {
   validateVendorDeliveryDate,
 } from '../vendorScheduling'
 import type { VendorSchedulingRules, Weekday } from '../vendorScheduling/types'
-import { ChecklistDateRebuildPrompt } from './ChecklistDateRebuildPrompt'
 import { DeliveryDaysHint } from './DeliveryDaysHint'
 import { FinalizeOrderModal } from './FinalizeOrderModal'
 import { OrderCartSummaryPanel } from './OrderCartSummaryPanel'
-import { OrderChecklistQuickActions } from './OrderChecklistQuickActions'
 import { QuantityInputWithArrows } from './QuantityInputWithArrows'
 import { SortChecklistToolbar } from './SortChecklistToolbar'
 import { VendorDeliveryDateBanner } from './VendorDeliveryDateBanner'
@@ -830,6 +828,9 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     !scheduleValidation.isValid &&
     schedulingRules.invalidDateStrategy === 'block_order'
 
+  void blockBuildFromHistoryByDate
+  void handleBuildFromHistory
+
   return (
     <div className="min-h-dvh bg-[#e8e4dc] font-sans text-stone-800">
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-6">
@@ -913,6 +914,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                   </div>
                 </div>
 
+                {/* TODO Phase 3 — restore when suggestion engine is built
                 <ChecklistDateRebuildPrompt
                   pendingRebuildDate={checklistRebuild.pendingRebuildDate}
                   onRebuild={handleBuildFromHistory}
@@ -920,9 +922,11 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                     checklistRebuild.keepCurrentDraftForCurrentDate()
                   }
                 />
+                */}
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                   <div className="min-w-0 flex-1 pb-0">
+                    {/* TODO Phase 3 — restore when suggestion engine is built
                     <OrderChecklistQuickActions
                       onBuildFromHistory={handleBuildFromHistory}
                       onClearAll={clearAllItems}
@@ -938,6 +942,20 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                             : undefined
                       }
                     />
+                    */}
+                    <div
+                      className="mb-3 flex flex-wrap gap-2"
+                      role="toolbar"
+                      aria-label="Checklist quick actions"
+                    >
+                      <button
+                        type="button"
+                        onClick={clearAllItems}
+                        className="rounded border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-200 active:bg-stone-300/80"
+                      >
+                        Clear all
+                      </button>
+                    </div>
                     {historyHint ? (
                       <p className="mt-2 text-xs text-stone-500 italic">
                         {historyHint}
