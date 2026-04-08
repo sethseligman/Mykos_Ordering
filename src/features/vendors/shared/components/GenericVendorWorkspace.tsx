@@ -1191,7 +1191,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         onClick={() => setShowAddItem(true)}
                         className="mt-2 flex min-h-11 touch-manipulation items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800"
                       >
-                        + Add item
+                        + Add item for this order
                       </button>
                     )}
                     <section
