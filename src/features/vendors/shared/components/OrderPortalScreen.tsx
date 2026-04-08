@@ -93,12 +93,8 @@ export function OrderPortalScreen({
       const snapshotLast = readVendorLastOrderDisplay(v.id)
       const savedAt = readVendorDraftTimestamp(v.id)
       const executionLast = readVendorLastExecutionDisplay(v.id)
-      const orderDays = v.settings.orderCadence.orderDays
       const deliveryLabel = deliveryLabelFromSettings(v.settings)
-      const operationalLine =
-        orderDays.length > 0
-          ? `${orderDays.join(' / ')} order for ${deliveryLabel}`
-          : `Order for ${deliveryLabel}`
+      const operationalLine = `Order for ${deliveryLabel}`
       const statusDetailLine =
         executionLast ??
         buildVendorStatusDetailLine(
