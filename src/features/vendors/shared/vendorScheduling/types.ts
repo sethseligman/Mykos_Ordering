@@ -31,6 +31,10 @@ export type VendorSchedulingRules = {
   preferredDeliveryDays: Weekday[]
   /** Optional: shown in copy only (not used to gate delivery-date validation yet). */
   validOrderDays?: Weekday[]
+  /**
+   * Format: "5:00 PM" or "10:00 PM" — matches order_cutoff_time in Supabase vendors table.
+   */
+  cutoffTime?: string
   standingOrderRules?: Partial<Record<Weekday, StandingOrderLineRule[]>>
   invalidDateStrategy: InvalidDateStrategy
 }

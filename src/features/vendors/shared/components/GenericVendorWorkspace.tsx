@@ -134,6 +134,7 @@ function schedulingRulesFromRow(
     vendorDeliveryDays,
     preferredDeliveryDays,
     validOrderDays: validOrderDays.length > 0 ? validOrderDays : undefined,
+    cutoffTime: row.order_cutoff_time ?? undefined,
     invalidDateStrategy: 'suggest_next_valid_date',
   }
 }
