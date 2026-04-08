@@ -172,6 +172,11 @@ export function OrderHistoryScreen({
                 <p className="mt-1 text-sm text-stone-600">
                   Sent: {formatSentAt(order.sent_at)}
                 </p>
+                {order.placed_by_name ? (
+                  <p className="mt-1 text-sm text-stone-600">
+                    Sent by {order.placed_by_name}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-sm text-stone-600">
                   Channel: {channelDisplay(order.channel)}
                 </p>

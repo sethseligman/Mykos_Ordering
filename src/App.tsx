@@ -6,7 +6,7 @@ import { EditVendorScreen } from './features/vendors/admin/EditVendorScreen'
 import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
 import { GenericVendorWorkspace } from './features/vendors/shared/components/GenericVendorWorkspace'
 import { OrderPortalScreen } from './features/vendors/shared/components/OrderPortalScreen'
-import { SignInScreen, useAuth } from './features/auth'
+import { SignInScreen, useAuth, useUserRole } from './features/auth'
 
 const KNOWN_VIEWS = [
   'portal',
@@ -24,6 +24,7 @@ type ActiveView =
 
 function App() {
   const { session, loading } = useAuth()
+  const userRole = useUserRole()
   const [activeView, setActiveView] = useState<ActiveView>('portal')
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null)
   const [catalogVendorId, setCatalogVendorId] = useState<string | null>(null)
@@ -123,7 +124,9 @@ function App() {
     <OrderPortalScreen
       refreshKey={String(portalRefresh)}
       onOpenVendor={openVendor}
-      onOpenVendorAdmin={() => setActiveView('admin')}
+      onOpenVendorAdmin={
+        userRole === 'owner' ? () => setActiveView('admin') : undefined
+      }
     />
   )
 }

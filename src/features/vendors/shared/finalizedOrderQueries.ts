@@ -10,6 +10,8 @@ export async function saveFinalizedOrderToSupabase(params: {
   messageText: string
   channel: 'sms' | 'email' | 'portal' | 'other'
   sentAt: number
+  placedByUserId?: string
+  placedByName?: string
 }): Promise<void> {
   // Fire-and-forget: localStorage history is source of truth
   try {
@@ -21,6 +23,8 @@ export async function saveFinalizedOrderToSupabase(params: {
       message_text: params.messageText,
       sent_at: new Date(params.sentAt).toISOString(),
       channel: params.channel,
+      placed_by_user_id: params.placedByUserId ?? null,
+      placed_by_name: params.placedByName ?? null,
     })
     if (error) {
       console.error('saveFinalizedOrderToSupabase:', error.message)
@@ -67,6 +71,8 @@ type FinalizedOrder = {
   sent_at: string
   channel: string
   created_at: string
+  placed_by_user_id: string | null
+  placed_by_name: string | null
 }
 
 export async function getFinalizedOrdersByVendor(
@@ -75,7 +81,7 @@ export async function getFinalizedOrdersByVendor(
   const { data, error } = await supabase
     .from('finalized_orders')
     .select(
-      'id, vendor_id, restaurant_id, delivery_date, items, message_text, sent_at, channel, created_at',
+      'id, vendor_id, restaurant_id, delivery_date, items, message_text, sent_at, channel, created_at, placed_by_user_id, placed_by_name',
     )
     .eq('vendor_id', vendorId)
     .eq('restaurant_id', RESTAURANT_ID)

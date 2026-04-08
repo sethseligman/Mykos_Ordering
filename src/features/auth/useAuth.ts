@@ -42,3 +42,19 @@ export function useAuth(): UseAuthState {
 
   return { session, user, loading }
 }
+
+export function useUserRole(): 'owner' | 'member' | null {
+  const [role, setRole] = useState<'owner' | 'member' | null>(null)
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      const { data, error } = await supabase.rpc('get_current_user_role')
+      if (!error && (data === 'owner' || data === 'member')) {
+        setRole(data)
+      }
+    }
+    void fetchRole()
+  }, [])
+
+  return role
+}

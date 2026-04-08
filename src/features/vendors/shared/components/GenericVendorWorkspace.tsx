@@ -18,6 +18,7 @@ import {
   loadDraftWithTimestampFromSupabase,
   saveDraftToSupabase,
 } from '../draftQueries'
+import { useAuth, useUserRole } from '../../../auth'
 import { saveFinalizedOrderToSupabase } from '../finalizedOrderQueries'
 import {
   mapSupabaseVendorRowToVendor,
@@ -282,6 +283,8 @@ const statusStyles: Record<
 }
 
 export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
+  const { user } = useAuth()
+  const userRole = useUserRole()
   const [loadState, setLoadState] = useState<'loading' | 'error' | 'ready'>(
     'loading',
   )
@@ -740,6 +743,8 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
       messageText: previewText,
       channel,
       sentAt: now,
+      placedByUserId: user?.id,
+      placedByName: userRole === 'owner' ? 'Seth' : 'Abdiel',
     })
     const snapshot: LastSentOrderSnapshot = {
       vendorId,
