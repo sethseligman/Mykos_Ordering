@@ -730,6 +730,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const handleMarkSent = () => {
     if (!draft || draft.status !== 'ready' || disableOutboundActions) return
     if (!vendorRow) return
+    if (!vendor || !schedulingRules) return
     const now = Date.now()
     const channel = vendorRow.order_placement_method
     const sentDraft: OrderDraft = { ...draft, status: 'sent' }
@@ -761,6 +762,20 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     })
     void loadHistory()
     void loadSuggestionHistory()
+    localStorage.removeItem(draftStorageKey)
+    localStorage.removeItem(draftTimestampKey)
+    const defaultDate = defaultDeliveryDateForScheduling(
+      schedulingRules,
+    )
+    setDraft(
+      mergeDraftWithCatalog(
+        null,
+        catalog,
+        vendorId,
+        defaultDate,
+        vendor.primaryRepFirstName,
+      ),
+    )
   }
 
   const tabBtn = (id: TabId, label: string) => (
