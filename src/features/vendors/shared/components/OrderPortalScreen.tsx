@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../../../../lib'
 import { fetchPortalVendors, readPortalVendors } from '../portalVendors'
 import {
   deliveryLabelFromSettings,
@@ -15,6 +16,9 @@ import {
 } from '../portalVendorState'
 import { VendorCard } from './VendorCard'
 
+// TODO: replace with auth session restaurant ID in Phase 2
+const RESTAURANT_ID = '196119fc-3f8f-4344-9731-cad4a2ebc63e'
+
 type Props = {
   /** Bumps derived vendor state when returning from a vendor screen */
   refreshKey: string
@@ -28,6 +32,7 @@ export function OrderPortalScreen({
   onOpenVendorAdmin,
 }: Props) {
   const [vendors, setVendors] = useState<VendorPlatformConfig[]>(() => readPortalVendors())
+  const [sentVendorIds, setSentVendorIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const loadVendors = async () => {
@@ -43,6 +48,31 @@ export function OrderPortalScreen({
     void loadVendors()
   }, [])
 
+  useEffect(() => {
+    const fetchSentToday = async () => {
+      try {
+        const todayIso = new Date().toISOString().slice(0, 10)
+        const { data } = await supabase
+          .from('finalized_orders')
+          .select('vendor_id, sent_at')
+          .eq('restaurant_id', RESTAURANT_ID)
+          .gte('sent_at', `${todayIso}T00:00:00.000Z`)
+          .order('sent_at', { ascending: false })
+
+        if (data) {
+          setSentVendorIds(
+            new Set(
+              (data as { vendor_id: string }[]).map((r) => r.vendor_id),
+            ),
+          )
+        }
+      } catch (e) {
+        console.error('Failed to fetch sent orders:', e)
+      }
+    }
+    void fetchSentToday()
+  }, [refreshKey])
+
   const now = new Date()
   const todayLabel = now.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -53,8 +83,13 @@ export function OrderPortalScreen({
 
   const vendorRows = useMemo(() => {
     return vendors.map((v) => {
-      const draftStatus = readVendorDraftStatus(v.id)
-      const dashboardStatus = mapOrderStatusToDashboard(draftStatus)
+      const isSentToday = sentVendorIds.has(v.id)
+      const draftStatus = isSentToday
+        ? ('sent' as const)
+        : readVendorDraftStatus(v.id)
+      const dashboardStatus = isSentToday
+        ? ('sent' as const)
+        : mapOrderStatusToDashboard(draftStatus)
       const snapshotLast = readVendorLastOrderDisplay(v.id)
       const savedAt = readVendorDraftTimestamp(v.id)
       const executionLast = readVendorLastExecutionDisplay(v.id)
@@ -85,7 +120,7 @@ export function OrderPortalScreen({
         savedAt,
       }
     })
-  }, [refreshKey, vendors])
+  }, [refreshKey, vendors, sentVendorIds])
 
   return (
     <div className="min-h-dvh bg-[#e8e4dc] px-3 py-5 font-sans text-stone-800 sm:px-6 sm:py-8">
