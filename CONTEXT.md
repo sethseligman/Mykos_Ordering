@@ -1,9 +1,9 @@
 # Mykos Ordering — Project Context
 
 ## What This Is
-A restaurant vendor ordering platform built by a chef (Seth Seligman) 
-to consolidate, manage, predict, and place vendor orders. Built with 
-AI-assisted development using Cursor for code generation and Claude 
+A restaurant vendor ordering platform built by a chef (Seth Seligman)
+to consolidate, manage, predict, and place vendor orders. Built with
+AI-assisted development using Cursor for code generation and Claude
 for architecture, prompting, and product decisions.
 
 ---
@@ -23,12 +23,15 @@ for architecture, prompting, and product decisions.
 
 ---
 
-## Key IDs (Hardcoded — TODO: replace with auth session in Phase 3)
+## Key IDs
 - **Restaurant ID:** `196119fc-3f8f-4344-9731-cad4a2ebc63e`
-- **D'Artagnan vendor ID:** `b17c6753-772d-464a-8fc4-b821a34a3dbd`
-- **Ace/Endico vendor ID:** `4059018a-1099-418b-8dac-812e6d85195f`
-- **Optima vendor ID:** `f60b1a6c-9aa5-4a96-817c-770951188110`
 - **Supabase auth user ID:** `e7320e53-06b9-40f8-bb30-1cd7b16dc69c`
+
+NOTE: The three original hardcoded vendor UUIDs
+(D'Artagnan, Ace/Endico, Optima) are now ARCHIVED.
+All vendors are now created via the wizard and routed
+through GenericVendorWorkspace. There are no hardcoded
+vendor UUIDs anywhere in the codebase.
 
 ---
 
@@ -38,19 +41,27 @@ for architecture, prompting, and product decisions.
 3. Suggestions come from history — not from catalog alone
 4. Full catalog is always rendered — suggestions only set `included` / `quantity`
 5. History must not expand the catalog — unknown SKUs in history are ignored
+6. One workspace for all vendors — GenericVendorWorkspace handles everything
+7. No hardcoded vendor UUIDs in App.tsx or anywhere else
 
 ---
 
 ## Database Schema (Supabase)
 Tables in `public`:
 - `restaurants` — multi-tenancy root, one row per restaurant
-- `vendors` — per restaurant, loaded from Supabase (replaces static TS arrays)
+- `vendors` — per restaurant, loaded from Supabase
 - `vendor_catalog_items` — populated by CSV/XLSX import or manual entry
 - `order_drafts` — unique constraint on (vendor_id, restaurant_id), upsert on save
 - `finalized_orders` — sent orders with full line items and message text
 - `execution_log` — every send action with channel, destination, status
 
-**RLS:** Enabled on all tables. All rows scoped by restaurant_id via 
+**Schema changes made (beyond original):**
+- `vendors.archived_at timestamptz` — soft delete
+- `vendors.ordering_notes text` — optional notes field
+- `vendors.order_days` — made nullable with default `{}`
+- `order_drafts` — unique constraint `(vendor_id, restaurant_id)` added
+
+**RLS:** Enabled on all tables. All rows scoped by restaurant_id via
 `get_current_restaurant_id()` helper function.
 
 **Order placement methods:** `sms` | `email` | `portal` | `other`
@@ -60,20 +71,17 @@ Tables in `public`:
 ---
 
 ## Vendor Architecture
-**Three custom vendor workspaces** (D'Artagnan, Ace/Endico, Optima):
-- Rich features: suggestion history, templates, standing orders
-- Hardcoded routing in App.tsx by UUID
-- Each has its own OrderSheet, SeedHistory, VendorConfig files
-
-**Generic vendor workspace** (all other vendors):
-- `GenericVendorWorkspace.tsx` — reads config and catalog from Supabase
+**One workspace for all vendors:**
+- `GenericVendorWorkspace.tsx` — handles ALL vendors
+- Reads config and catalog from Supabase
 - Supports custom one-off items (vendorItemId starts with `custom:`)
-- Same Finalize Order modal as custom workspaces
+- All three original custom workspaces (D'Artagnan, Ace/Endico, Optima)
+  have been deleted — 6,340 lines of legacy code removed
 
 **Routing in App.tsx:**
-- Known UUIDs → custom workspaces
-- Any other UUID containing `-` → GenericVendorWorkspace
-- Known views: `portal` | `admin` | `addVendor` | `editVendor`
+- Any UUID containing `-` → GenericVendorWorkspace
+- Known views: `portal` | `admin` | `addVendor` | `editVendor` | `catalog`
+- NO hardcoded vendor UUID routes
 
 ---
 
@@ -87,28 +95,29 @@ src/
 │   │   └── SignInScreen.tsx         — email/password sign-in
 │   ├── vendors/
 │   │   ├── admin/
-│   │   │   ├── AddVendorScreen.tsx  — 5-step wizard with catalog import
-│   │   │   ├── EditVendorScreen.tsx — long form, pre-populated
-│   │   │   └── VendorAdminScreen.tsx — vendor list with archive
-│   │   ├── shared/
-│   │   │   ├── components/
-│   │   │   │   ├── OrderPortalScreen.tsx
-│   │   │   │   ├── GenericVendorWorkspace.tsx
-│   │   │   │   ├── FinalizeOrderModal.tsx
-│   │   │   │   ├── VendorHeader.tsx
-│   │   │   │   ├── OrderCartSummaryPanel.tsx
-│   │   │   │   └── ...other shared components
-│   │   │   ├── vendorQueries.ts     — fetchVendors, mapSupabaseVendorRowToVendor
-│   │   │   ├── draftQueries.ts      — saveDraftToSupabase (upsert), loadDraftWithTimestampFromSupabase
-│   │   │   ├── finalizedOrderQueries.ts
-│   │   │   ├── portalVendors.ts     — fetchPortalVendors (Supabase) + static fallback
-│   │   │   └── portalVendorState.ts — buildPortalVendorCta, status helpers
-│   │   ├── dartagnan/               — custom workspace + order sheet
-│   │   ├── ace-endico/              — custom workspace + order sheet
-│   │   └── optima/                  — custom workspace + order sheet
+│   │   │   ├── AddVendorScreen.tsx  — 5-step wizard, duplicate name check, phone auto-format
+│   │   │   ├── EditVendorScreen.tsx — pre-populated form, phone auto-format
+│   │   │   ├── VendorAdminScreen.tsx — vendor list with archive + catalog button
+│   │   │   └── CatalogEditorScreen.tsx — edit/add/delete catalog items per vendor
+│   │   └── shared/
+│   │       ├── components/
+│   │       │   ├── GenericVendorWorkspace.tsx — ALL vendors use this
+│   │       │   ├── FinalizeOrderModal.tsx — SMS/Email/Portal/Other actions
+│   │       │   ├── OrderPortalScreen.tsx — portal, reads sent status from Supabase
+│   │       │   ├── VendorCard.tsx — status badges, CTA labels
+│   │       │   └── OrderCartSummaryPanel.tsx
+│   │       ├── vendorScheduling/
+│   │       │   ├── validateVendorDeliveryDate.ts — cutoff time aware
+│   │       │   ├── types.ts — includes cutoffTime?: string
+│   │       │   └── weekdayUtils.ts
+│   │       ├── vendorQueries.ts
+│   │       ├── draftQueries.ts      — upsert, loadDraftWithTimestampFromSupabase
+│   │       ├── finalizedOrderQueries.ts
+│   │       ├── portalVendors.ts     — Supabase only, no static fallback
+│   │       └── portalVendorState.ts — status logic, CTA labels
 │   └── lib/
 │       ├── supabase.ts              — Supabase client
-│       └── buildOrderMessage.ts     — generates order text
+│       └── buildOrderMessage.ts    — generates order text
 ```
 
 ---
@@ -119,54 +128,68 @@ src/
 - **Sync:** Last-write-wins by timestamp
   - `ordering-app:draft:${vendorId}` — draft JSON
   - `ordering-app:draft-ts:${vendorId}` — timestamp of last local write
-  - On mount: load localStorage immediately, then check Supabase — 
+  - On mount: load localStorage immediately, then check Supabase —
     if Supabase updatedAt > local timestamp, hydrate from Supabase
 - **Save button:** Explicit push to Supabase, shows "Saved ✓" for 1.5s
 - **Auto-save:** Every draft change also fires saveDraftToSupabase (fire and forget)
+- **After mark as sent:** localStorage cleared, Supabase draft reset to blank,
+  workspace resets to blank with next valid delivery date
+
+---
+
+## Portal Status System
+Status reads from TWO sources:
+1. **Sent status** — reads from Supabase `finalized_orders` (today's orders)
+2. **Draft status** — reads from localStorage
+
+Status labels:
+- `not_started` → "Not started" — no draft, no sent order today
+- `draft` → "In progress" — draft exists with items checked
+- `draft_ready` → "Ready to place" — order generated
+- `sent` → "Sent · Last sent [date]" — finalized_orders has today's record
+
+CTA labels:
+- Not started → "Start order"
+- In progress → "Continue draft"
+- Ready → "Review & send"
+- Sent → "Open workspace"
+
+---
+
+## Scheduling Logic
+- Cutoff time awareness built in — reads `order_cutoff_time` from vendors table
+- Format: "5:00 PM" or "10:00 PM" (12-hour with AM/PM)
+- Lead time: 1 day (order must be placed by cutoff the day BEFORE delivery)
+- `defaultDeliveryDateForScheduling` — finds next valid delivery considering
+  both delivery days AND whether cutoff has passed
+- `validateVendorDeliveryDate` — validates selected date, shows cutoff message
+  if window has passed, suggests next valid date
 
 ---
 
 ## Current Vendors in App
-| Vendor | Type | Method | Status |
-|--------|------|--------|--------|
-| D'Artagnan | Custom workspace | SMS | ✅ Full |
-| Ace/Endico | Custom workspace | SMS | ✅ Full |
-| Optima | Custom workspace | SMS | ✅ Full |
-| Sogno Toscano | Generic workspace | Portal | ✅ With catalog |
-| PFD Meat | Generic workspace | Email | ✅ No catalog |
+| Vendor | Method | Cutoff | Delivery Days | Status |
+|--------|--------|--------|---------------|--------|
+| D'Artagnan | SMS | 5:00 PM | Tue / Fri | ✅ With catalog |
+| Ace / Endico | SMS | 5:00 PM | Tue / Wed | ✅ With catalog |
+| Optima | SMS | 10:00 PM | Thu | ✅ With catalog |
+| Sogno Toscano | Portal | 5:00 PM | Wed | ✅ With catalog |
+| Peter's Fish Market | SMS | TBD | Mon-Sat | ✅ With catalog |
+| PFD Meat | Email | TBD | TBD | ⚠️ Needs proper setup |
 
 **Still need to add:** Baldor, MFE, Imperial
 
 ---
 
-## Known UX Debt (Fix Before Phase 3 Features)
-1. ~~**Mobile sticky bottom bar**~~ — FIXED (phase-2/mobile-ux-debt).
-   Root cause was overflow-hidden on both the workspace wrapper and order
-   sheet shell divs. Fixed with overflow-clip in all three custom workspace
-   files and all three order sheet files.
-   NOTE: A previous revert commit (ecbab2c — "Revert sticky top metadata bar
-   with Save/Finalize on desktop") indicates a prior attempt at desktop
-   right-rail actions that was rolled back. Review that commit before
-   implementing desktop right-rail Save/Finalize buttons.
-2. **Portal status labels** — update to: Draft / Ready to place / Sent
-3. **Ace/Endico SMS button ghosted** — undiagnosed
-4. **Desktop layout** — needs fresh approach; bottom bar is mobile-only
-5. **Order sheet opens blank by default** — "Build from history" button
-   populates from suggestions; draft must be explicitly saved or resets
-6. **Pack size in checklist rows** — duplicate-named items indistinguishable
-7. **Destination field validation** — phone/email/URL format checking
-8. **Order completion feedback** — no clear signal that day's ordering is done
-9. **Mobile header compression** — rep name, greeting, redundant channel
-   display all removed; delivery date promoted; status badge logic fixed
-
----
-
 ## Development Workflow
-- All work done in Cursor (AI code editor)
+- All code written via Cursor prompts — Claude writes the prompt, user runs it
+- Always ask user to upload source files before writing prompts
+- Never fetch from GitHub directly
 - Branch naming: `phase-N/short-description`
 - Merge to main → Vercel auto-deploys
 - Always commit and push before ending a session
 - Schema changes done manually in Supabase SQL Editor
+- Test cross-device behavior in incognito window (clean localStorage)
 
 ---
 
@@ -175,12 +198,33 @@ src/
 - Do not try to build a global item database — per-restaurant catalogs only
 - Do not rush SMS/email automation before the send flow is stable
 - Do not redesign the portal before real order history is accumulated
+- Do not add hardcoded vendor UUIDs back to App.tsx — ever
 - Do not fight the card/shell div structure with sticky positioning
+- Do not try to make the metadata bar sticky inside an overflow-clip card —
+  it does not work; the page scrolls, not the card
+
+---
+
+## Known Deferred Items (Phase 3+)
+- Suggestion engine / Build from history (UI hidden until Phase 3)
+- LO toggle — last order quantities ghost layer on checklist
+- Portal dashboard — week-at-a-glance view
+- Order completion feedback — "Tomorrow's order placed at 10:15 PM"
+- History tab — full order view with line items
+- Amendment order flow — "Cancel the lamb for Tuesday"
+- Notepad / voice capture for kitchen notes
+- Drag-to-reorder catalog items (display_order column exists, UI not built)
+- Unit toggle per checklist row (ea/cs/# quick switch)
+- Catalog item bulk edit (editable table view)
+- In-app vendor messaging (evaluate vs amendment flow)
+- Worksheets as first-class entity (many-to-many vendor assignment)
+- Platform-managed master catalogs for common vendors
+- Multi-delivery-per-week status visibility on portal cards
 
 ---
 
 ## Business Context
-- Currently: single user (Seth), test restaurant "Mykos"
+- Currently: single user (Seth), restaurant "Mykos"
 - Near term: 2-3 chef friends using for free, collect feedback
 - Medium term: charge first restaurant, grow from there
 - Long term: SaaS platform for independent restaurants
