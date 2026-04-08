@@ -764,6 +764,16 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     void loadSuggestionHistory()
     localStorage.removeItem(draftStorageKey)
     localStorage.removeItem(draftTimestampKey)
+    const blankDraft: OrderDraft = {
+      vendorId,
+      deliveryDate: defaultDeliveryDateForScheduling(schedulingRules),
+      repFirstName: vendor.primaryRepFirstName,
+      items: [],
+      internalNotes: '',
+      vendorNotes: '',
+      status: 'draft',
+    }
+    void saveDraftToSupabase(vendorId, blankDraft)
     const defaultDate = defaultDeliveryDateForScheduling(
       schedulingRules,
     )
