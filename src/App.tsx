@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AddVendorScreen } from './features/vendors/admin/AddVendorScreen'
 import { CatalogEditorScreen } from './features/vendors/admin/CatalogEditorScreen'
+import { OrderHistoryScreen } from './features/vendors/admin/OrderHistoryScreen'
 import { EditVendorScreen } from './features/vendors/admin/EditVendorScreen'
 import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
 import { GenericVendorWorkspace } from './features/vendors/shared/components/GenericVendorWorkspace'
@@ -13,6 +14,7 @@ const KNOWN_VIEWS = [
   'addVendor',
   'editVendor',
   'catalog',
+  'orderHistory',
 ] as const
 
 // Portal, admin flows, or any vendor UUID (custom workspaces + generic).
@@ -26,6 +28,8 @@ function App() {
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null)
   const [catalogVendorId, setCatalogVendorId] = useState<string | null>(null)
   const [catalogVendorName, setCatalogVendorName] = useState<string>('')
+  const [historyVendorId, setHistoryVendorId] = useState<string | null>(null)
+  const [historyVendorName, setHistoryVendorName] = useState<string>('')
   const [portalRefresh, setPortalRefresh] = useState(0)
 
   if (loading) {
@@ -70,6 +74,11 @@ function App() {
           setCatalogVendorName(vendorName)
           setActiveView('catalog')
         }}
+        onViewHistory={(vendorId, vendorName) => {
+          setHistoryVendorId(vendorId)
+          setHistoryVendorName(vendorName)
+          setActiveView('orderHistory')
+        }}
       />
     )
   }
@@ -95,6 +104,16 @@ function App() {
       <CatalogEditorScreen
         vendorId={catalogVendorId}
         vendorName={catalogVendorName}
+        onBack={() => setActiveView('admin')}
+      />
+    )
+  }
+
+  if (activeView === 'orderHistory' && historyVendorId) {
+    return (
+      <OrderHistoryScreen
+        vendorId={historyVendorId}
+        vendorName={historyVendorName}
         onBack={() => setActiveView('admin')}
       />
     )

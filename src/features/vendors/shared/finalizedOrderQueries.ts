@@ -56,3 +56,53 @@ export async function saveExecutionEventToSupabase(params: {
     console.error('saveExecutionEventToSupabase:', err)
   }
 }
+
+type FinalizedOrder = {
+  id: string
+  vendor_id: string
+  restaurant_id: string
+  delivery_date: string
+  items: unknown
+  message_text: string
+  sent_at: string
+  channel: string
+  created_at: string
+}
+
+export async function getFinalizedOrdersByVendor(
+  vendorId: string,
+): Promise<FinalizedOrder[]> {
+  const { data, error } = await supabase
+    .from('finalized_orders')
+    .select(
+      'id, vendor_id, restaurant_id, delivery_date, items, message_text, sent_at, channel, created_at',
+    )
+    .eq('vendor_id', vendorId)
+    .eq('restaurant_id', RESTAURANT_ID)
+    .order('sent_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return (data ?? []) as FinalizedOrder[]
+}
+
+export async function deleteFinalizedOrder(
+  orderId: string,
+  vendorId: string,
+  sentAt: string,
+): Promise<void> {
+  const { error: orderError } = await supabase
+    .from('finalized_orders')
+    .delete()
+    .eq('id', orderId)
+
+  if (orderError) throw new Error(orderError.message)
+
+  const { error: logError } = await supabase
+    .from('execution_log')
+    .delete()
+    .eq('vendor_id', vendorId)
+    .eq('restaurant_id', RESTAURANT_ID)
+    .eq('sent_at', sentAt)
+
+  if (logError) throw new Error(logError.message)
+}
