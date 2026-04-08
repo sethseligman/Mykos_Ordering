@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchPortalVendors, readPortalVendors } from '../portalVendors'
 import {
   deliveryLabelFromSettings,
-  orderTriggerLabelFromSettings,
   type VendorPlatformConfig,
 } from '../vendorConfig'
 import {
@@ -59,12 +58,16 @@ export function OrderPortalScreen({
       const snapshotLast = readVendorLastOrderDisplay(v.id)
       const savedAt = readVendorDraftTimestamp(v.id)
       const executionLast = readVendorLastExecutionDisplay(v.id)
-      const operationalLine = `${orderTriggerLabelFromSettings(v.settings)} for ${deliveryLabelFromSettings(v.settings)}`
+      const orderDays = v.settings.orderCadence.orderDays
+      const deliveryLabel = deliveryLabelFromSettings(v.settings)
+      const operationalLine =
+        orderDays.length > 0
+          ? `${orderDays.join(' / ')} order for ${deliveryLabel}`
+          : `Order for ${deliveryLabel}`
       const statusDetailLine =
         executionLast ??
         buildVendorStatusDetailLine(
           dashboardStatus,
-          v.settings.capabilities.supportsHistorySuggestions,
           snapshotLast,
           v.lastKnownOrderDate,
         )
@@ -122,7 +125,11 @@ export function OrderPortalScreen({
                   operationalLine={row.operationalLine}
                   statusDetailLine={row.statusDetailLine}
                   status={row.dashboardStatus}
-                  savedAt={row.savedAt}
+                  savedAt={
+                    row.dashboardStatus === 'not_started'
+                      ? null
+                      : row.savedAt
+                  }
                   actionLabel={row.actionLabel}
                   onNavigate={() => onOpenVendor(row.id)}
                 />

@@ -68,7 +68,6 @@ export function readVendorLastExecutionDisplay(vendorId: string): string | null 
 
 export function buildVendorStatusDetailLine(
   dashboardStatus: VendorDashboardStatus,
-  hasSuggestedOrder: boolean,
   snapshotLastMonthDay: string | null,
   lastKnownOrderDateIso: string,
 ): string {
@@ -78,15 +77,12 @@ export function buildVendorStatusDetailLine(
     return `Last sent ${when}`
   }
   if (dashboardStatus === 'draft_ready') {
-    return 'Suggested order ready'
+    return 'Ready to place'
   }
   if (dashboardStatus === 'draft') {
     return 'Draft in progress'
   }
-  if (hasSuggestedOrder) {
-    return 'Suggested order ready'
-  }
-  return 'Draft not started'
+  return ''
 }
 
 export function readVendorDraftTimestamp(vendorId: string): string | null {
