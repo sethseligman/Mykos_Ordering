@@ -24,12 +24,14 @@ type Props = {
   refreshKey: string
   onOpenVendor: (vendorId: string) => void
   onOpenVendorAdmin?: () => void
+  onOpenVendorReference?: () => void
 }
 
 export function OrderPortalScreen({
   refreshKey,
   onOpenVendor,
   onOpenVendorAdmin,
+  onOpenVendorReference,
 }: Props) {
   const [vendors, setVendors] = useState<VendorPlatformConfig[]>(() => readPortalVendors())
   const [sentVendorIds, setSentVendorIds] = useState<Set<string>>(new Set())
@@ -131,15 +133,26 @@ export function OrderPortalScreen({
                 Today: {todayLabel}
               </h1>
             </div>
-            {onOpenVendorAdmin ? (
-              <button
-                type="button"
-                onClick={onOpenVendorAdmin}
-                className="shrink-0 text-xs font-semibold uppercase tracking-wide text-stone-600 underline-offset-2 hover:text-stone-900 hover:underline"
-              >
-                Vendor admin
-              </button>
-            ) : null}
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-4 gap-y-1">
+              {onOpenVendorReference ? (
+                <button
+                  type="button"
+                  onClick={onOpenVendorReference}
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-600 underline-offset-2 hover:text-stone-900 hover:underline"
+                >
+                  Vendor reference
+                </button>
+              ) : null}
+              {onOpenVendorAdmin ? (
+                <button
+                  type="button"
+                  onClick={onOpenVendorAdmin}
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-600 underline-offset-2 hover:text-stone-900 hover:underline"
+                >
+                  Vendor admin
+                </button>
+              ) : null}
+            </div>
           </div>
         </header>
 

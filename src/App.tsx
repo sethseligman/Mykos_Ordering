@@ -6,6 +6,7 @@ import { EditVendorScreen } from './features/vendors/admin/EditVendorScreen'
 import { VendorAdminScreen } from './features/vendors/admin/VendorAdminScreen'
 import { GenericVendorWorkspace } from './features/vendors/shared/components/GenericVendorWorkspace'
 import { OrderPortalScreen } from './features/vendors/shared/components/OrderPortalScreen'
+import { VendorReferenceScreen } from './features/vendors/shared/components/VendorReferenceScreen'
 import { SignInScreen, useAuth, useUserRole } from './features/auth'
 
 const KNOWN_VIEWS = [
@@ -15,6 +16,7 @@ const KNOWN_VIEWS = [
   'editVendor',
   'catalog',
   'orderHistory',
+  'vendorReference',
 ] as const
 
 // Portal, admin flows, or any vendor UUID (custom workspaces + generic).
@@ -120,6 +122,10 @@ function App() {
     )
   }
 
+  if (activeView === 'vendorReference') {
+    return <VendorReferenceScreen onBack={backToPortal} />
+  }
+
   return (
     <OrderPortalScreen
       refreshKey={String(portalRefresh)}
@@ -127,6 +133,7 @@ function App() {
       onOpenVendorAdmin={
         userRole === 'owner' ? () => setActiveView('admin') : undefined
       }
+      onOpenVendorReference={() => setActiveView('vendorReference')}
     />
   )
 }
