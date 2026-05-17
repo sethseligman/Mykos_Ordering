@@ -219,13 +219,25 @@ function mergeDraftWithCatalog(
     snapshot,
   )
   const finalItems = [...baselinedCatalogRows, ...customItems]
+  const resolvedDate = parsed.deliveryDate || deliveryDate
   return {
     ...parsed,
     vendorId,
-    deliveryDate: parsed.deliveryDate || deliveryDate,
+    deliveryDate: resolvedDate,
     repFirstName: parsed.repFirstName?.trim() || repFirstName,
     items: finalItems,
   }
+}
+
+function advanceStaleDraftDate(
+  draft: OrderDraft,
+  rules: VendorSchedulingRules,
+): OrderDraft {
+  const validation = validateVendorDeliveryDate(rules, draft.deliveryDate)
+  if (!validation.isValid && validation.suggestedNextValidDate) {
+    return { ...draft, deliveryDate: validation.suggestedNextValidDate }
+  }
+  return draft
 }
 
 function readDraftFromStorage(
@@ -413,7 +425,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
       defaultDate,
       vendor.primaryRepFirstName,
     )
-    setDraft(localDraft)
+    setDraft(advanceStaleDraftDate(localDraft, schedulingRules))
 
     if (
       localStorage.getItem(draftStorageKey) &&
@@ -438,8 +450,9 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
           defaultDate,
           vendor.primaryRepFirstName,
         )
-        setDraft(hydrated)
-        localStorage.setItem(draftStorageKey, JSON.stringify(hydrated))
+        const advanced = advanceStaleDraftDate(hydrated, schedulingRules)
+        setDraft(advanced)
+        localStorage.setItem(draftStorageKey, JSON.stringify(advanced))
         localStorage.setItem(draftTimestampKey, remoteTs.toString())
       }
     })
