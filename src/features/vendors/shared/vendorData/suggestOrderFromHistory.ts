@@ -2,21 +2,14 @@ import type { OrderItem, VendorItem } from '../../../../types/order'
 import type { VendorHistoryLine, VendorHistoryOrder } from './types'
 
 const RECENT_ORDER_COUNT = 10
-const MIN_HITS = 4
-const MIN_RATIO = 0.35
-
-function packKey(p?: string): string {
-  return (p ?? '').trim()
-}
+const MIN_HITS = 3
+const MIN_RATIO = 0.3
 
 function lineMatchesCatalog(
   line: VendorHistoryLine,
   cat: VendorItem,
 ): boolean {
-  return (
-    line.itemId === cat.id &&
-    packKey(line.packSizeSnapshot) === packKey(cat.packSize)
-  )
+  return line.itemId === cat.id
 }
 
 /** How many of the most recent `recentCount` orders include this catalog line (id + pack). */
