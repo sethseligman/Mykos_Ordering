@@ -859,9 +859,6 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     !scheduleValidation.isValid &&
     schedulingRules.invalidDateStrategy === 'block_order'
 
-  void blockBuildFromHistoryByDate
-  void handleBuildFromHistory
-
   return (
     <div className="min-h-dvh bg-[#e8e4dc] font-sans text-stone-800">
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-6">
@@ -985,6 +982,21 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
                         className="rounded border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-200 active:bg-stone-300/80"
                       >
                         Clear all
+                      </button>
+                      <button
+                        type="button"
+                        disabled={blockBuildFromHistoryByDate || suggestionHistory.length === 0}
+                        onClick={handleBuildFromHistory}
+                        title={
+                          suggestionHistory.length === 0
+                            ? 'No order history yet.'
+                            : blockBuildFromHistoryByDate
+                              ? 'Pick a valid delivery day before building from history.'
+                              : 'Pre-fill checklist from your order history'
+                        }
+                        className="rounded border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-200 active:bg-stone-300/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Build from history
                       </button>
                     </div>
                     {historyHint ? (
