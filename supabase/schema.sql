@@ -86,6 +86,9 @@ create table if not exists public.order_drafts (
     on delete cascade
 );
 
+create unique index if not exists order_drafts_vendor_restaurant_unique
+  on public.order_drafts (vendor_id, restaurant_id);
+
 -- Stores finalized orders that were actually sent through a vendor channel.
 create table if not exists public.finalized_orders (
   id uuid primary key default gen_random_uuid(),

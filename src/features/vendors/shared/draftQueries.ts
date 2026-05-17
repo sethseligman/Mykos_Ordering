@@ -20,42 +20,119 @@ function isOrderStatus(value: unknown): value is OrderStatus {
   return typeof value === 'string' && (ORDER_STATUSES as string[]).includes(value)
 }
 
-function isOrderItem(value: unknown): value is OrderItem {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+function coerceOrderItem(value: unknown): OrderItem | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
   const o = value as Record<string, unknown>
-  if (typeof o.vendorItemId !== 'string') return false
-  if (typeof o.included !== 'boolean') return false
-  if (typeof o.quantity !== 'string') return false
-  if (typeof o.unit !== 'string') return false
-  if (o.lastQuantity !== undefined && typeof o.lastQuantity !== 'string') return false
-  if (o.lastUnit !== undefined && typeof o.lastUnit !== 'string') return false
-  return true
+  if (typeof o.vendorItemId !== 'string' || !o.vendorItemId) return null
+  if (typeof o.included !== 'boolean') return null
+
+  const quantity =
+    typeof o.quantity === 'string'
+      ? o.quantity
+      : o.quantity != null
+        ? String(o.quantity)
+        : ''
+  const unit =
+    typeof o.unit === 'string' ? o.unit : o.unit != null ? String(o.unit) : ''
+
+  const item: OrderItem = {
+    vendorItemId: o.vendorItemId,
+    included: o.included,
+    quantity,
+    unit,
+  }
+  if (typeof o.lastQuantity === 'string') item.lastQuantity = o.lastQuantity
+  if (typeof o.lastUnit === 'string') item.lastUnit = o.lastUnit
+  return item
+}
+
+/** Ensures persisted JSONB includes every field {@link parseDraftFromRow} expects. */
+function normalizeDraftForStorage(draft: OrderDraft): OrderDraft {
+  return {
+    vendorId: draft.vendorId,
+    deliveryDate: draft.deliveryDate,
+    repFirstName: draft.repFirstName ?? '',
+    internalNotes: draft.internalNotes ?? '',
+    vendorNotes: draft.vendorNotes ?? '',
+    status: isOrderStatus(draft.status) ? draft.status : 'draft',
+    items: draft.items.map((row) => ({
+      vendorItemId: row.vendorItemId,
+      included: row.included,
+      quantity: row.quantity ?? '',
+      unit: row.unit ?? '',
+      ...(row.lastQuantity !== undefined
+        ? { lastQuantity: row.lastQuantity }
+        : {}),
+      ...(row.lastUnit !== undefined ? { lastUnit: row.lastUnit } : {}),
+    })),
+  }
 }
 
 /** Safely parses the JSONB `items` column (full OrderDraft payload) into an OrderDraft, or null if invalid. */
 export function parseDraftFromRow(row: SupabaseDraftRow): OrderDraft | null {
   const raw = row.items
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    console.warn('parseDraftFromRow: items column is not an object')
+    return null
+  }
 
   const obj = raw as Record<string, unknown>
+  const missingCritical: string[] = []
 
-  if (typeof obj.vendorId !== 'string') return null
-  if (typeof obj.deliveryDate !== 'string') return null
-  if (typeof obj.repFirstName !== 'string') return null
-  if (typeof obj.internalNotes !== 'string') return null
-  if (typeof obj.vendorNotes !== 'string') return null
-  if (!isOrderStatus(obj.status)) return null
-  if (!Array.isArray(obj.items)) return null
-  if (!obj.items.every(isOrderItem)) return null
+  if (typeof obj.vendorId !== 'string' || !obj.vendorId) {
+    missingCritical.push('vendorId')
+  }
+  if (typeof obj.deliveryDate !== 'string' || !obj.deliveryDate) {
+    missingCritical.push('deliveryDate')
+  }
+  if (!Array.isArray(obj.items)) {
+    missingCritical.push('items')
+  }
+
+  if (missingCritical.length > 0) {
+    console.warn(
+      'parseDraftFromRow: missing critical fields',
+      missingCritical,
+    )
+    return null
+  }
+
+  const lineItems = (obj.items as unknown[])
+    .map(coerceOrderItem)
+    .filter((item): item is OrderItem => item != null)
+
+  if (lineItems.length < (obj.items as unknown[]).length) {
+    console.warn(
+      'parseDraftFromRow: dropped invalid line items',
+      (obj.items as unknown[]).length - lineItems.length,
+    )
+  }
+
+  if (typeof obj.repFirstName !== 'string') {
+    console.warn('parseDraftFromRow: repFirstName missing, defaulting to ""')
+  }
+  if (typeof obj.internalNotes !== 'string') {
+    console.warn('parseDraftFromRow: internalNotes missing, defaulting to ""')
+  }
+  if (typeof obj.vendorNotes !== 'string') {
+    console.warn('parseDraftFromRow: vendorNotes missing, defaulting to ""')
+  }
+  if (!isOrderStatus(obj.status)) {
+    console.warn('parseDraftFromRow: status invalid, defaulting to draft')
+  }
 
   return {
-    vendorId: obj.vendorId,
-    deliveryDate: obj.deliveryDate,
-    repFirstName: obj.repFirstName,
-    items: obj.items,
-    internalNotes: obj.internalNotes,
-    vendorNotes: obj.vendorNotes,
-    status: obj.status,
+    vendorId: obj.vendorId as string,
+    deliveryDate: obj.deliveryDate as string,
+    repFirstName:
+      typeof obj.repFirstName === 'string' ? obj.repFirstName : '',
+    items: lineItems,
+    internalNotes:
+      typeof obj.internalNotes === 'string' ? obj.internalNotes : '',
+    vendorNotes: typeof obj.vendorNotes === 'string' ? obj.vendorNotes : '',
+    status: isOrderStatus(obj.status) ? obj.status : 'draft',
   }
 }
 
@@ -66,14 +143,15 @@ export async function saveDraftToSupabase(
 ): Promise<void> {
   // Fire-and-forget: localStorage is source of truth
   try {
+    const payload = normalizeDraftForStorage(draft)
     const { error } = await supabase
       .from('order_drafts')
       .upsert(
         {
           vendor_id: vendorId,
           restaurant_id: RESTAURANT_ID,
-          delivery_date: draft.deliveryDate,
-          items: draft,
+          delivery_date: payload.deliveryDate,
+          items: payload,
           updated_at: new Date().toISOString(),
         },
         {
@@ -101,16 +179,16 @@ export async function loadDraftFromSupabase(
       .eq('restaurant_id', RESTAURANT_ID)
       .order('updated_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
 
     if (error) {
       console.error('loadDraftFromSupabase: query failed', error.message)
       return null
     }
 
-    if (!data) return null
+    const row = data?.[0] as SupabaseDraftRow | undefined
+    if (!row) return null
 
-    const parsed = parseDraftFromRow(data as SupabaseDraftRow)
+    const parsed = parseDraftFromRow(row)
     if (!parsed) {
       console.error('loadDraftFromSupabase: invalid draft payload in row')
     }
@@ -133,7 +211,6 @@ export async function loadDraftWithTimestampFromSupabase(
       .eq('restaurant_id', RESTAURANT_ID)
       .order('updated_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
 
     if (error) {
       console.error(
@@ -143,9 +220,9 @@ export async function loadDraftWithTimestampFromSupabase(
       return null
     }
 
-    if (!data) return null
+    const row = data?.[0] as SupabaseDraftRow | undefined
+    if (!row) return null
 
-    const row = data as SupabaseDraftRow
     const parsed = parseDraftFromRow(row)
     if (!parsed) {
       console.error(

@@ -310,6 +310,7 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   const [saving, setSaving] = useState(false)
   const [saveAck, setSaveAck] = useState(false)
   const saveResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const draftRemoteSyncReadyRef = useRef(false)
   const [checklistSortMode, setChecklistSortMode] =
     useState<OrderChecklistSortMode>('alphabetical')
   const [historyRows, setHistoryRows] = useState<FinalizedOrderRow[]>([])
@@ -415,6 +416,10 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
 
   useEffect(() => {
     if (loadState !== 'ready' || !vendor || !schedulingRules) return
+
+    let cancelled = false
+    draftRemoteSyncReadyRef.current = false
+    const hadLocalDraft = localStorage.getItem(draftStorageKey) != null
     const defaultDate = defaultDeliveryDateForScheduling(schedulingRules)
 
     // Set localStorage draft immediately for fast UI
@@ -435,27 +440,38 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
     }
 
     // Then check Supabase for a more recent draft
-    void loadDraftWithTimestampFromSupabase(vendorId).then((remote) => {
-      if (!remote) return
+    void loadDraftWithTimestampFromSupabase(vendorId)
+      .then((remote) => {
+        if (cancelled || !remote) return
 
-      const localTsRaw = localStorage.getItem(draftTimestampKey)
-      const localTs = localTsRaw ? parseInt(localTsRaw, 10) : 0
-      const remoteTs = new Date(remote.updatedAt).getTime()
+        const localTsRaw = localStorage.getItem(draftTimestampKey)
+        const localTs = localTsRaw ? parseInt(localTsRaw, 10) : 0
+        const remoteTs = new Date(remote.updatedAt).getTime()
+        const shouldHydrate = !hadLocalDraft || remoteTs > localTs
 
-      if (remoteTs > localTs) {
-        const hydrated = mergeDraftWithCatalog(
-          remote.draft,
-          catalog,
-          vendorId,
-          defaultDate,
-          vendor.primaryRepFirstName,
-        )
-        const advanced = advanceStaleDraftDate(hydrated, schedulingRules)
-        setDraft(advanced)
-        localStorage.setItem(draftStorageKey, JSON.stringify(advanced))
-        localStorage.setItem(draftTimestampKey, remoteTs.toString())
-      }
-    })
+        if (shouldHydrate) {
+          const hydrated = mergeDraftWithCatalog(
+            remote.draft,
+            catalog,
+            vendorId,
+            defaultDate,
+            vendor.primaryRepFirstName,
+          )
+          const advanced = advanceStaleDraftDate(hydrated, schedulingRules)
+          setDraft(advanced)
+          localStorage.setItem(draftStorageKey, JSON.stringify(advanced))
+          localStorage.setItem(draftTimestampKey, remoteTs.toString())
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          draftRemoteSyncReadyRef.current = true
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [
     loadState,
     vendor,
@@ -480,7 +496,8 @@ export function GenericVendorWorkspace({ vendorId, onBack }: Props) {
   )
 
   useEffect(() => {
-    if (draft != null) persistDraft(draft)
+    if (draft == null || !draftRemoteSyncReadyRef.current) return
+    persistDraft(draft)
   }, [draft, persistDraft])
 
   const scheduleValidation = useMemo(() => {
