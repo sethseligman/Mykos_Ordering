@@ -35,6 +35,9 @@ export function OrderPortalScreen({
 }: Props) {
   const [vendors, setVendors] = useState<VendorPlatformConfig[]>(() => readPortalVendors())
   const [sentVendorIds, setSentVendorIds] = useState<Set<string>>(new Set())
+  const [supabaseDraftMeta, setSupabaseDraftMeta] = useState<
+    Map<string, { status: string; updatedAt: string }>
+  >(new Map())
 
   useEffect(() => {
     const loadVendors = async () => {
@@ -75,6 +78,46 @@ export function OrderPortalScreen({
     void fetchSentToday()
   }, [refreshKey])
 
+  useEffect(() => {
+    const fetchDraftMeta = async () => {
+      try {
+        const { data } = await supabase
+          .from('order_drafts')
+          .select('vendor_id, items, updated_at')
+          .eq('restaurant_id', RESTAURANT_ID)
+
+        if (data) {
+          const map = new Map<string, { status: string; updatedAt: string }>()
+          for (const row of data as {
+            vendor_id: string
+            items: unknown
+            updated_at: string
+          }[]) {
+            const items = row.items as Record<string, unknown> | null
+            if (!items) continue
+            const status = typeof items.status === 'string' ? items.status : null
+            const itemsArr = Array.isArray(items.items) ? items.items : []
+            const hasIncluded = itemsArr.some(
+              (i: unknown) =>
+                i &&
+                typeof i === 'object' &&
+                (i as Record<string, unknown>).included === true,
+            )
+            if (!status && !hasIncluded) continue
+            map.set(row.vendor_id, {
+              status: status ?? (hasIncluded ? 'draft' : 'no_draft'),
+              updatedAt: row.updated_at,
+            })
+          }
+          setSupabaseDraftMeta(map)
+        }
+      } catch (e) {
+        console.error('Failed to fetch draft meta:', e)
+      }
+    }
+    void fetchDraftMeta()
+  }, [refreshKey])
+
   const now = new Date()
   const todayLabel = now.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -86,14 +129,33 @@ export function OrderPortalScreen({
   const vendorRows = useMemo(() => {
     return vendors.map((v) => {
       const isSentToday = sentVendorIds.has(v.id)
+      const localStatus = readVendorDraftStatus(v.id)
+      const remoteMeta = supabaseDraftMeta.get(v.id)
       const draftStatus = isSentToday
         ? ('sent' as const)
-        : readVendorDraftStatus(v.id)
+        : localStatus !== 'no_draft'
+          ? localStatus
+          : remoteMeta?.status === 'sent'
+            ? 'sent'
+            : remoteMeta?.status === 'ready'
+              ? 'ready'
+              : remoteMeta?.status === 'draft' ||
+                  (remoteMeta && remoteMeta.status !== 'no_draft')
+                ? 'draft'
+                : 'no_draft'
       const dashboardStatus = isSentToday
         ? ('sent' as const)
         : mapOrderStatusToDashboard(draftStatus)
       const snapshotLast = readVendorLastOrderDisplay(v.id)
-      const savedAt = readVendorDraftTimestamp(v.id)
+      const localSavedAt = readVendorDraftTimestamp(v.id)
+      const savedAt = localSavedAt ?? (remoteMeta
+        ? new Date(remoteMeta.updatedAt).toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null)
       const executionLast = readVendorLastExecutionDisplay(v.id)
       const deliveryLabel = deliveryLabelFromSettings(v.settings)
       const operationalLine = `Order for ${deliveryLabel}`
@@ -118,7 +180,7 @@ export function OrderPortalScreen({
         savedAt,
       }
     })
-  }, [refreshKey, vendors, sentVendorIds])
+  }, [refreshKey, vendors, sentVendorIds, supabaseDraftMeta])
 
   return (
     <div className="min-h-dvh bg-[#e8e4dc] px-3 py-5 font-sans text-stone-800 sm:px-6 sm:py-8">
