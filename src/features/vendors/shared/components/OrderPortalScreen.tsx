@@ -93,19 +93,27 @@ export function OrderPortalScreen({
             items: unknown
             updated_at: string
           }[]) {
+            // Skip vendors already marked sent today — sentVendorIds handles those
+            if (sentVendorIds.has(row.vendor_id)) continue
+
             const items = row.items as Record<string, unknown> | null
             if (!items) continue
-            const status = typeof items.status === 'string' ? items.status : null
+
             const itemsArr = Array.isArray(items.items) ? items.items : []
             const hasIncluded = itemsArr.some(
-              (i: unknown) =>
-                i &&
-                typeof i === 'object' &&
-                (i as Record<string, unknown>).included === true,
+              (i: unknown) => {
+                if (!i || typeof i !== 'object') return false
+                const item = i as Record<string, unknown>
+                return (
+                  item.included === true &&
+                  typeof item.quantity === 'string' &&
+                  item.quantity.trim() !== ''
+                )
+              },
             )
-            if (!status && !hasIncluded) continue
+            if (!hasIncluded) continue
             map.set(row.vendor_id, {
-              status: status ?? (hasIncluded ? 'draft' : 'no_draft'),
+              status: 'draft',
               updatedAt: row.updated_at,
             })
           }
@@ -116,7 +124,7 @@ export function OrderPortalScreen({
       }
     }
     void fetchDraftMeta()
-  }, [refreshKey])
+  }, [refreshKey, sentVendorIds])
 
   const now = new Date()
   const todayLabel = now.toLocaleDateString(undefined, {
